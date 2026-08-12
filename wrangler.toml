@@ -1,0 +1,8 @@
+name = "drop-api"
+main = "worker/src/index.ts"
+compatibility_date = "2026-08-11"
+minify = true
+
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "drop-files"

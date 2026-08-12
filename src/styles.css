@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply min-h-screen bg-slate-50 text-slate-900 antialiased;
+    font-feature-settings: 'ss01' 1, 'ss02' 1, 'cv01' 1;
+  }
+
+  * {
+    @apply border-slate-200;
+  }
+
+  button,
+  input,
+  textarea {
+    @apply outline-none;
+  }
+}
