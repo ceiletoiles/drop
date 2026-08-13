@@ -11,6 +11,8 @@ import { UploadDropzone } from '../features/items/UploadDropzone';
 import { useItems } from '../features/items/useItems';
 import type { Item } from '../features/items/types';
 import { apiUrl } from '../lib/env';
+import { ApiBaseUrlBanner } from '../features/settings/ApiBaseUrlBanner';
+import { needsApiOverride } from '../lib/api-config';
 
 export const DashboardPage = () => {
   const { session, loading: authLoading } = useAuth();
@@ -18,7 +20,8 @@ export const DashboardPage = () => {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
-  const { items, loading, error, refresh } = useItems(session?.access_token ?? null, query);
+  const apiConfigured = !needsApiOverride();
+  const { items, loading, error, refresh } = useItems(session?.access_token ?? null, query, apiConfigured);
 
   if (!authLoading && !session) return <Navigate to="/login" replace />;
 
@@ -114,6 +117,7 @@ export const DashboardPage = () => {
   return (
     <AppShell>
       <div className="space-y-5">
+        <ApiBaseUrlBanner onApplied={refresh} />
         <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
           <div className="space-y-5">
             <UploadDropzone onUpload={handleUpload} disabled={!token} />

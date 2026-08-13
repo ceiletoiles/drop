@@ -10,15 +10,17 @@ interface AuthFormProps {
 }
 
 export const AuthForm = ({ mode }: AuthFormProps) => {
-  const { signIn, signUp, configured } = useAuth();
+  const { signIn, signUp, signInWithGoogle, configured } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
+    setSuccessMessage(null);
     setLoading(true);
 
     try {
@@ -26,10 +28,24 @@ export const AuthForm = ({ mode }: AuthFormProps) => {
         await signIn(email.trim(), password);
       } else {
         await signUp(email.trim(), password);
+        setSuccessMessage('Check your email to confirm your account, then come back here to log in.');
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Authentication failed.');
     } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setSuccessMessage(null);
+    setLoading(true);
+
+    try {
+      await signInWithGoogle();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Google sign-in failed.');
       setLoading(false);
     }
   };
@@ -60,10 +76,27 @@ export const AuthForm = ({ mode }: AuthFormProps) => {
           />
         </label>
         {error ? <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p> : null}
+        {successMessage ? (
+          <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{successMessage}</p>
+        ) : null}
         <Button type="submit" className="w-full" disabled={loading || !configured}>
           {loading ? <Spinner /> : mode === 'login' ? 'Log in' : 'Create account'}
         </Button>
       </form>
+      <div className="my-6 flex items-center gap-3">
+        <div className="h-px flex-1 bg-slate-200" />
+        <span className="text-xs font-medium uppercase tracking-[0.22em] text-slate-400">or</span>
+        <div className="h-px flex-1 bg-slate-200" />
+      </div>
+      <Button
+        type="button"
+        variant="secondary"
+        className="w-full"
+        onClick={() => void handleGoogleSignIn()}
+        disabled={loading || !configured}
+      >
+        Continue with Google
+      </Button>
     </Card>
   );
 };

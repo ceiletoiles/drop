@@ -48,17 +48,20 @@ npm install
 
 ```bash
 copy .env.example .env.local
+copy .env.example .env.production
 ```
 
-3. Fill in your Supabase and Cloudflare values in `.env.local`.
+3. Fill in your Supabase values in both files.
+4. Keep `VITE_API_BASE_URL` as localhost in `.env.local`.
+5. Set `VITE_API_BASE_URL` to the deployed Worker URL in `.env.production`.
 
-4. Run the Worker in one terminal:
+6. Run the Worker in one terminal:
 
 ```bash
 npm run worker:dev
 ```
 
-5. Run the Vite app in another terminal:
+7. Run the Vite app in another terminal:
 
 ```bash
 npm run dev
@@ -76,8 +79,12 @@ Worker:
 
 - `SUPABASE_URL` - Supabase project URL
 - `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key
-- `R2_BUCKET_NAME` - R2 bucket name used in deployment config
 - `MAX_UPLOAD_BYTES` - optional upload limit override
+
+Local env files:
+
+- `.env.local` - used by local development
+- `.env.production` - used when building for production
 
 ## Supabase setup
 

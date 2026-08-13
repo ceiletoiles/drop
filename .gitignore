@@ -3,8 +3,11 @@ dist
 .wrangler
 .env
 .env.local
+.env.production
 .env.example
 .DS_Store
 coverage
 vite.config.ts.timestamp-*
 *.tsbuildinfo
+.dev.vars
+supabase/.temp/

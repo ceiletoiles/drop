@@ -9,14 +9,14 @@ interface UseItemsResult {
   refresh: () => void;
 }
 
-export const useItems = (token: string | null, query: string): UseItemsResult => {
+export const useItems = (token: string | null, query: string, enabled = true): UseItemsResult => {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
-    if (!token) {
+    if (!token || !enabled) {
       setItems([]);
       setLoading(false);
       return;
@@ -43,7 +43,7 @@ export const useItems = (token: string | null, query: string): UseItemsResult =>
     return () => {
       controller.abort();
     };
-  }, [query, reloadToken, token]);
+  }, [enabled, query, reloadToken, token]);
 
   return {
     items,
