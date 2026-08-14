@@ -11,3 +11,7 @@ vite.config.ts.timestamp-*
 *.tsbuildinfo
 .dev.vars
 supabase/.temp/
+.pnpm-store
+package-lock.json
+package.json
+.hintrc

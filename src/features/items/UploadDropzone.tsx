@@ -2,6 +2,8 @@ import { useRef, useState, type DragEvent } from 'react';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { formatFileSize } from '../../lib/format';
+import { CloudUploadIcon, PlusIcon } from '../../components/ui/Icon';
+import { clsx } from 'clsx';
 
 interface UploadDropzoneProps {
   onUpload: (file: File, onProgress: (percent: number) => void) => Promise<void>;
@@ -42,50 +44,55 @@ export const UploadDropzone = ({ onUpload, disabled }: UploadDropzoneProps) => {
 
   return (
     <div
-      className={`rounded-[2rem] border border-dashed p-5 transition ${
-        dragging ? 'border-sky-400 bg-sky-50/80' : 'border-slate-200 bg-white/75'
-      }`}
+      className={clsx(
+        'rounded-[2rem] border border-dashed px-4 py-5 transition sm:px-5 sm:py-6',
+        dragging
+          ? 'border-indigo-300 bg-[linear-gradient(180deg,_rgba(239,246,255,0.9),_rgba(255,255,255,0.96))]'
+          : 'border-indigo-200/90 bg-[linear-gradient(180deg,_rgba(255,255,255,0.92),_rgba(244,247,255,0.95))]'
+      )}
       onDragEnter={() => setDragging(true)}
       onDragLeave={() => setDragging(false)}
       onDragOver={(event) => event.preventDefault()}
       onDrop={handleDrop}
     >
-      <div className="flex flex-col gap-4">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">Drop zone</p>
-          <h2 className="mt-2 text-2xl font-semibold text-slate-950">Drop something here</h2>
-          <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
-            Upload a PDF, image, document, archive, or any ordinary file. On mobile, tap Browse files instead.
-          </p>
+      <div className="flex flex-col items-center text-center">
+        <div className="grid h-12 w-12 place-items-center rounded-[1.4rem] bg-[linear-gradient(135deg,_#6366f1,_#8b5cf6)] text-white shadow-[0_12px_24px_rgba(99,102,241,0.18)]">
+          <CloudUploadIcon />
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Button type="button" onClick={() => inputRef.current?.click()} disabled={disabled || busy}>
-            {busy ? <Spinner /> : 'Browse files'}
+        <h2 className="mt-3 text-xl font-semibold tracking-tight text-slate-950 sm:text-[1.7rem]">Drop anything here</h2>
+        <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
+          Upload files, images, or create a text note from the quick actions below.
+        </p>
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+          <Button type="button" onClick={() => inputRef.current?.click()} disabled={disabled || busy} className="min-w-36 px-4 py-2.5">
+            {busy ? <Spinner /> : <><PlusIcon /> Add something</>}
           </Button>
-          <span className="text-sm text-slate-500">Max 25 MB</span>
+          <span className="text-xs text-slate-500">Max 25 MB</span>
         </div>
+
         {busy ? (
-          <div className="space-y-2">
+          <div className="mt-4 w-full max-w-md space-y-2">
             <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-              <div className="h-full rounded-full bg-sky-500 transition-all" style={{ width: `${progress}%` }} />
+              <div className="h-full rounded-full bg-[linear-gradient(135deg,_#6366f1,_#8b5cf6)] transition-all" style={{ width: `${progress}%` }} />
             </div>
             <p className="text-xs text-slate-500">{progress}% uploaded</p>
           </div>
         ) : null}
-        {status ? <p className="text-sm text-slate-600">{status}</p> : null}
-        <input
-          ref={inputRef}
-          className="hidden"
-          type="file"
-          onChange={async (event) => {
-            const file = event.target.files?.[0];
-            event.target.value = '';
-            if (file && !disabled && !busy) {
-              await upload(file);
-            }
-          }}
-        />
+        {status ? <p className="mt-4 text-sm text-slate-600">{status}</p> : null}
       </div>
+
+      <input
+        ref={inputRef}
+        className="hidden"
+        type="file"
+        onChange={async (event) => {
+          const file = event.target.files?.[0];
+          event.target.value = '';
+          if (file && !disabled && !busy) {
+            await upload(file);
+          }
+        }}
+      />
     </div>
   );
 };

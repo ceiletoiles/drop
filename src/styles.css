@@ -11,8 +11,14 @@
     @apply scroll-smooth;
   }
 
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
   body {
-    @apply min-h-screen bg-slate-50 text-slate-900 antialiased;
+    @apply min-h-screen overflow-x-hidden bg-slate-50 text-slate-900 antialiased;
     font-feature-settings: 'ss01' 1, 'ss02' 1, 'cv01' 1;
   }
 
@@ -24,5 +30,10 @@
   input,
   textarea {
     @apply outline-none;
+  }
+
+  ::selection {
+    background: rgba(99, 102, 241, 0.2);
+    color: #0f172a;
   }
 }
