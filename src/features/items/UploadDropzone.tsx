@@ -2,7 +2,7 @@ import { useRef, useState, type DragEvent } from 'react';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { formatFileSize } from '../../lib/format';
-import { CloudUploadIcon, PlusIcon } from '../../components/ui/Icon';
+import { PlusIcon } from '../../components/ui/Icon';
 import { clsx } from 'clsx';
 
 interface UploadDropzoneProps {
@@ -56,15 +56,28 @@ export const UploadDropzone = ({ onUpload, disabled }: UploadDropzoneProps) => {
       onDrop={handleDrop}
     >
       <div className="flex flex-col items-center text-center">
-        <div className="grid h-12 w-12 place-items-center rounded-[1.4rem] bg-[linear-gradient(135deg,_#6366f1,_#8b5cf6)] text-white shadow-[0_12px_24px_rgba(99,102,241,0.18)]">
-          <CloudUploadIcon />
-        </div>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          id="Upload--Streamline-Outlined-Material"
+          height="24"
+          width="24"
+          className="h-6 w-6 text-slate-950"
+          aria-hidden="true"
+        >
+          <path
+            fill="#000000"
+            d="M11.25 16.175V6.9l-3 3 -1.075 -1.075L12 4l4.825 4.825 -1.075 1.075 -3 -3v9.275h-1.5ZM5.5 20c-0.4 0 -0.75 -0.15 -1.05 -0.45 -0.3 -0.3 -0.45 -0.65 -0.45 -1.05v-3.575h1.5V18.5h13v-3.575h1.5V18.5c0 0.4 -0.15 0.75 -0.45 1.05 -0.3 0.3 -0.65 0.45 -1.05 0.45H5.5Z"
+            strokeWidth="0.5"
+          />
+        </svg>
         <h2 className="mt-3 text-xl font-semibold tracking-tight text-slate-950 sm:text-[1.7rem]">Drop anything here</h2>
         <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
           Upload files, images, or create a text note from the quick actions below.
         </p>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-          <Button type="button" onClick={() => inputRef.current?.click()} disabled={disabled || busy} className="min-w-36 px-4 py-2.5">
+          <Button type="button" variant="secondary" onClick={() => inputRef.current?.click()} disabled={disabled || busy} className="min-w-36 px-4 py-2.5">
             {busy ? <Spinner /> : <><PlusIcon /> Add something</>}
           </Button>
           <span className="text-xs text-slate-500">Max 25 MB</span>

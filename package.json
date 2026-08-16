@@ -13,6 +13,7 @@
     "worker:deploy": "wrangler deploy"
   },
   "dependencies": {
+    "@react-symbols/icons": "^1.4.1",
     "@supabase/supabase-js": "^2.57.4",
     "clsx": "^2.1.1",
     "react": "^19.1.1",

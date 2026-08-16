@@ -3,8 +3,10 @@ import type { Item } from './types';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Spinner } from '../../components/ui/Spinner';
-import { ChevronDownIcon, CopyIcon, DownloadIcon, FileIcon, ImageIcon, ListIcon, MoreHorizontalIcon, SearchIcon, TextIcon, TrashIcon } from '../../components/ui/Icon';
+import { CopyIcon, DownloadIcon, ListIcon, MoreHorizontalIcon, SearchIcon, SortIcon, TextIcon, TrashIcon } from '../../components/ui/Icon';
+import { FileTypeIcon } from '../../components/ui/FileTypeIcon';
 import { formatFileSize, formatRelativeTime } from '../../lib/format';
+import { getFileTypeLabel } from '../../lib/file';
 import { clsx } from 'clsx';
 
 interface RecentItemsListProps {
@@ -12,8 +14,9 @@ interface RecentItemsListProps {
   loading: boolean;
   query: string;
   sortOrder: 'newest' | 'oldest';
-  activeFilter: 'home' | 'all' | 'text' | 'files' | 'images';
+  activeFilter: 'home' | 'all' | 'text' | 'files' | 'images' | 'search';
   searchInputRef: RefObject<HTMLInputElement | null>;
+  message?: string | null;
   onQueryChange: (value: string) => void;
   onSortChange: (value: 'newest' | 'oldest') => void;
   onFocusSearch: () => void;
@@ -23,22 +26,6 @@ interface RecentItemsListProps {
   onDownload: (item: Item) => Promise<void>;
 }
 
-const iconForItem = (item: Item) => {
-  if (item.type === 'text') return TextIcon;
-  const mime = item.file?.mimeType ?? '';
-  if (mime.includes('image')) return ImageIcon;
-  if (mime.includes('pdf')) return FileIcon;
-  return ListIcon;
-};
-
-const typeLabel = (item: Item) => {
-  if (item.type === 'text') return 'Text';
-  const mime = item.file?.mimeType ?? '';
-  if (mime.includes('image')) return 'Image';
-  if (mime.includes('pdf')) return 'PDF';
-  return 'File';
-};
-
 export const RecentItemsList = ({
   items,
   loading,
@@ -46,6 +33,7 @@ export const RecentItemsList = ({
   sortOrder,
   activeFilter,
   searchInputRef,
+  message,
   onQueryChange,
   onSortChange,
   onFocusSearch,
@@ -89,23 +77,104 @@ export const RecentItemsList = ({
     setMenuState((current) => (current?.itemId === item.id ? null : { itemId: item.id, top, left }));
   };
 
+  const sortControl = (
+    <div className="relative shrink-0">
+      <Button
+        type="button"
+        variant="ghost"
+        className="inline-flex h-12 w-12 items-center justify-center rounded-full p-0 text-slate-500 transition hover:text-slate-700"
+        onClick={() => setSortMenuOpen((current) => !current)}
+        aria-haspopup="menu"
+        aria-expanded={sortMenuOpen}
+        data-sort-toggle
+        aria-label="Sort items"
+      >
+        <SortIcon className={clsx('transition-transform', sortMenuOpen ? 'rotate-180' : '')} />
+      </Button>
+
+      {sortMenuOpen ? (
+        <div
+          className="absolute right-0 top-[calc(100%+0.5rem)] z-30 w-52 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.12)]"
+          data-sort-panel
+        >
+          <button
+            type="button"
+            className={clsx(
+              'flex w-full items-center justify-between px-4 py-3 text-left text-sm transition',
+              sortOrder === 'newest' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-700 hover:bg-slate-100'
+            )}
+            onClick={() => {
+              onSortChange('newest');
+              setSortMenuOpen(false);
+            }}
+          >
+            <span>Newest first</span>
+            {sortOrder === 'newest' ? <span className="text-xs font-semibold">Active</span> : null}
+          </button>
+          <button
+            type="button"
+            className={clsx(
+              'flex w-full items-center justify-between px-4 py-3 text-left text-sm transition',
+              sortOrder === 'oldest' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-700 hover:bg-slate-100'
+            )}
+            onClick={() => {
+              onSortChange('oldest');
+              setSortMenuOpen(false);
+            }}
+          >
+            <span>Oldest first</span>
+            {sortOrder === 'oldest' ? <span className="text-xs font-semibold">Active</span> : null}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+
+  const headerCopy = (
+    <div className="min-w-0 flex min-h-12 flex-col justify-center">
+      <p className="text-[12px] font-semibold uppercase tracking-[0.22em] text-slate-500">Recent items</p>
+      <p className="mt-1 text-sm text-slate-500">
+        {activeFilter === 'text'
+          ? 'Showing text notes only.'
+          : activeFilter === 'files'
+            ? 'Showing uploaded files only.'
+          : activeFilter === 'images'
+              ? 'Showing uploaded images only.'
+              : null}
+      </p>
+    </div>
+  );
+
   return (
     <section ref={rootRef} className="pt-5" onPointerDownCapture={closeMenuOnOutsideTap}>
-      <div className="flex flex-col gap-4 pb-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="lg:flex lg:min-h-12 lg:flex-col lg:justify-center">
-          <p className="text-[12px] font-semibold uppercase tracking-[0.22em] text-slate-500">Recent items</p>
-          <p className="mt-1 text-sm text-slate-500">
-            {activeFilter === 'text'
-              ? 'Showing text notes only.'
-              : activeFilter === 'files'
-                ? 'Showing uploaded files only.'
-                : activeFilter === 'images'
-                  ? 'Showing uploaded images only.'
-                  : null}
-          </p>
+      <div className="pb-3">
+        <div className="flex items-center justify-between gap-3 sm:hidden">
+          {headerCopy}
+          {sortControl}
         </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="relative min-w-0 sm:w-80">
+
+        <div className="hidden sm:flex sm:items-center sm:justify-between sm:gap-3">
+          {headerCopy}
+          <div className="flex items-center gap-3">
+            {activeFilter === 'search' ? (
+              <div className="relative min-w-0 w-80 flex-none">
+                <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Input
+                  ref={searchInputRef}
+                  value={query}
+                  onChange={(event) => onQueryChange(event.target.value)}
+                  placeholder="Search your items..."
+                  onFocus={onFocusSearch}
+                  className="h-12 border-slate-200 bg-white/85 pl-10 pr-3 shadow-sm focus:border-indigo-300 focus:ring-2 focus:ring-sky-400/25"
+                />
+              </div>
+            ) : null}
+            {sortControl}
+          </div>
+        </div>
+
+        {activeFilter === 'search' ? (
+          <div className="relative mt-3 min-w-0 sm:hidden">
             <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <Input
               ref={searchInputRef}
@@ -116,58 +185,10 @@ export const RecentItemsList = ({
               className="h-12 border-slate-200 bg-white/85 pl-10 pr-3 shadow-sm focus:border-indigo-300 focus:ring-2 focus:ring-sky-400/25"
             />
           </div>
-          <div className="relative min-w-0 sm:w-52">
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-12 w-full justify-between rounded-2xl border border-slate-200 bg-white/85 px-4 text-sm font-medium text-slate-700 shadow-sm hover:bg-white"
-              onClick={() => setSortMenuOpen((current) => !current)}
-              aria-haspopup="menu"
-              aria-expanded={sortMenuOpen}
-              data-sort-toggle
-            >
-              <span>{sortOrder === 'newest' ? 'Newest first' : 'Oldest first'}</span>
-              <ChevronDownIcon className={clsx('text-slate-400 transition-transform', sortMenuOpen ? 'rotate-180' : '')} />
-            </Button>
-
-            {sortMenuOpen ? (
-              <div
-                className="absolute right-0 top-[calc(100%+0.5rem)] z-30 w-52 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.12)]"
-                data-sort-panel
-              >
-                <button
-                  type="button"
-                  className={clsx(
-                    'flex w-full items-center justify-between px-4 py-3 text-left text-sm transition',
-                    sortOrder === 'newest' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-700 hover:bg-slate-100'
-                  )}
-                  onClick={() => {
-                    onSortChange('newest');
-                    setSortMenuOpen(false);
-                  }}
-                >
-                  <span>Newest first</span>
-                  {sortOrder === 'newest' ? <span className="text-xs font-semibold">Active</span> : null}
-                </button>
-                <button
-                  type="button"
-                  className={clsx(
-                    'flex w-full items-center justify-between px-4 py-3 text-left text-sm transition',
-                    sortOrder === 'oldest' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-700 hover:bg-slate-100'
-                  )}
-                  onClick={() => {
-                    onSortChange('oldest');
-                    setSortMenuOpen(false);
-                  }}
-                >
-                  <span>Oldest first</span>
-                  {sortOrder === 'oldest' ? <span className="text-xs font-semibold">Active</span> : null}
-                </button>
-              </div>
-            ) : null}
-          </div>
-        </div>
+        ) : null}
       </div>
+
+      {message ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</div> : null}
 
       {loading ? (
         <div className="space-y-4 py-5">
@@ -203,7 +224,6 @@ export const RecentItemsList = ({
       ) : (
         <ul className="border-t border-slate-100">
           {items.map((item) => {
-            const Icon = iconForItem(item);
             const isText = item.type === 'text';
             const isMenuOpen = menuState?.itemId === item.id;
 
@@ -218,31 +238,27 @@ export const RecentItemsList = ({
                     }}
                     className="flex min-w-0 flex-1 items-center gap-3 text-left"
                   >
-                    <div
-                      className={clsx(
-                        'grid h-12 w-12 shrink-0 place-items-center rounded-2xl',
-                        item.type === 'text'
-                          ? 'bg-amber-50 text-amber-500'
-                          : item.file?.mimeType.includes('image')
-                            ? 'bg-emerald-50 text-emerald-500'
-                            : 'bg-rose-50 text-rose-500'
-                      )}
-                    >
-                      <Icon className="h-6 w-6" />
-                    </div>
+                    <FileTypeIcon
+                      itemType={item.type}
+                      filename={item.file?.originalName}
+                      mimeType={item.file?.mimeType}
+                      className="h-7 w-7 shrink-0"
+                    />
                     <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="truncate text-sm font-semibold text-slate-950">{item.title}</p>
-                        <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[11px] font-medium text-indigo-600">{typeLabel(item)}</span>
-                      </div>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {item.type === 'file' && item.file ? `${formatFileSize(item.file.size)} • ` : ''}
-                        {formatRelativeTime(item.createdAt)}
+                      <p className="truncate text-sm font-semibold text-slate-950">{item.title}</p>
+                      <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+                        <span className="text-[11px] font-medium leading-none text-indigo-600">
+                          {getFileTypeLabel({ itemType: item.type, filename: item.file?.originalName, mimeType: item.file?.mimeType })}
+                        </span>
+                        <span className="h-1 w-1 shrink-0 rounded-full bg-slate-300" aria-hidden="true" />
+                        {item.type === 'file' && item.file ? <span>{formatFileSize(item.file.size)}</span> : null}
+                        {item.type === 'file' && item.file ? <span className="h-1 w-1 shrink-0 rounded-full bg-slate-300" aria-hidden="true" /> : null}
+                        <span>{formatRelativeTime(item.createdAt)}</span>
                       </p>
                     </div>
                   </button>
 
-                  <div className="flex shrink-0 items-center gap-2.5">
+                  <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
                     {isText ? (
                       <Button
                         type="button"

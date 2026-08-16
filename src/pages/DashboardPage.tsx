@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Navigate } from 'react-router-dom';
 import { AppShell } from '../components/layout/AppShell';
 import { Button } from '../components/ui/Button';
@@ -23,12 +23,13 @@ import { UploadDropzone } from '../features/items/UploadDropzone';
 import { useItems } from '../features/items/useItems';
 import type { Item } from '../features/items/types';
 import { apiUrl } from '../lib/env';
+import { getFileTypeKind } from '../lib/file';
 import { ApiBaseUrlBanner } from '../features/settings/ApiBaseUrlBanner';
 import { getInitials } from '../lib/format';
 import { needsApiOverride } from '../lib/api-config';
 import { clsx } from 'clsx';
 
-type ViewFilter = 'home' | 'all' | 'text' | 'files' | 'images';
+type ViewFilter = 'home' | 'all' | 'text' | 'files' | 'images' | 'search';
 
 const navItems: Array<{
   key: ViewFilter | 'search';
@@ -91,12 +92,23 @@ export const DashboardPage = () => {
       .join(' ');
   }, [user?.email, user?.user_metadata?.full_name, user?.user_metadata?.name]);
 
+  useEffect(() => {
+    if (activeFilter === 'search') {
+      window.requestAnimationFrame(() => {
+        searchInputRef.current?.focus();
+      });
+    }
+  }, [activeFilter]);
+
   const filteredItems = useMemo(() => {
     const list = [...items].filter((item) => {
       if (activeFilter === 'home' || activeFilter === 'all') return true;
       if (activeFilter === 'text') return item.type === 'text';
-      if (activeFilter === 'files') return item.type === 'file' && !item.file?.mimeType.startsWith('image/');
-      if (activeFilter === 'images') return item.type === 'file' && item.file?.mimeType.startsWith('image/');
+      const fileType = item.type === 'file'
+        ? getFileTypeKind({ filename: item.file?.originalName, mimeType: item.file?.mimeType })
+        : 'note';
+      if (activeFilter === 'files') return item.type === 'file' && fileType !== 'image';
+      if (activeFilter === 'images') return item.type === 'file' && fileType === 'image';
       return true;
     });
 
@@ -229,9 +241,8 @@ export const DashboardPage = () => {
 
   const navAction = (key: ViewFilter | 'search' | 'more') => {
     if (key === 'search') {
-      setActiveFilter('all');
+      setActiveFilter('search');
       setMobileActionsOpen(false);
-      searchInputRef.current?.focus();
       return;
     }
     if (key === 'more') {
@@ -250,9 +261,6 @@ export const DashboardPage = () => {
         <aside className="hidden xl:flex">
           <div className="flex min-h-full w-full flex-col pr-4">
             <div className="flex items-center gap-2.5">
-              <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-sky-500 text-white shadow-lg shadow-indigo-500/20">
-                <span className="text-base font-semibold">D</span>
-              </div>
               <div>
                 <p className="text-[16px] font-semibold tracking-tight text-slate-950">Drop</p>
                 <p className="text-[12px] text-slate-500">Everything in one place</p>
@@ -290,10 +298,7 @@ export const DashboardPage = () => {
           <header className="mb-3 pb-2.5 pt-1 sm:pb-3">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <div className="flex items-center gap-3 xl:hidden">
-                  <div className="grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-sky-500 text-white shadow-lg shadow-indigo-500/20">
-                    <span className="text-base font-semibold">D</span>
-                  </div>
+            <div className="flex items-center gap-3 xl:hidden">
                   <div>
                     <p className="text-[16px] font-semibold tracking-tight text-slate-950">Drop</p>
                     <p className="text-[12px] text-slate-500">Save and revisit anything</p>
@@ -381,6 +386,7 @@ export const DashboardPage = () => {
               query={query}
               sortOrder={sortOrder}
               activeFilter={activeFilter}
+              message={actionMessage}
               onQueryChange={setQuery}
               onSortChange={setSortOrder}
               onFocusSearch={() => searchInputRef.current?.focus()}
@@ -390,10 +396,6 @@ export const DashboardPage = () => {
               onDelete={handleDelete}
               onDownload={handleDownload}
             />
-
-            {actionMessage ? (
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{actionMessage}</div>
-            ) : null}
 
             {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
           </section>
@@ -421,9 +423,6 @@ export const DashboardPage = () => {
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-sky-500 text-white shadow-lg shadow-indigo-500/25">
-                <span className="text-lg font-semibold">D</span>
-              </div>
               <div>
                 <p className="text-lg font-semibold tracking-tight text-slate-950">Drop</p>
                 <p className="text-sm text-slate-500">Save and revisit anything</p>
