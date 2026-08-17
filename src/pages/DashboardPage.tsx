@@ -25,7 +25,7 @@ import type { Item } from '../features/items/types';
 import { apiUrl } from '../lib/env';
 import { getFileTypeKind } from '../lib/file';
 import { ApiBaseUrlBanner } from '../features/settings/ApiBaseUrlBanner';
-import { getInitials } from '../lib/format';
+import { formatFileSize, getInitials } from '../lib/format';
 import { needsApiOverride } from '../lib/api-config';
 import { clsx } from 'clsx';
 
@@ -75,6 +75,9 @@ export const DashboardPage = () => {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
@@ -202,11 +205,29 @@ export const DashboardPage = () => {
     }
   };
 
-  const handleUpload = async (file: File, onProgress: (percent: number) => void) => {
+  const startUpload = async (file: File) => {
     if (!token) throw new Error('Missing session.');
-    await uploadFile(token, file, onProgress);
-    refresh();
-    showAction('File uploaded.');
+
+    setUploadBusy(true);
+    setUploadProgress(0);
+    setUploadStatus(`${file.name} • ${formatFileSize(file.size)}`);
+
+    try {
+      await uploadFile(token, file, setUploadProgress);
+      refresh();
+      setUploadStatus('Upload complete');
+      showAction('File uploaded.');
+      window.setTimeout(() => setUploadStatus(null), 2200);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Upload failed.';
+      setUploadStatus(message);
+      showAction(message);
+      window.setTimeout(() => setUploadStatus(null), 2200);
+      throw error;
+    } finally {
+      setUploadBusy(false);
+      setUploadProgress(0);
+    }
   };
 
   const handleFileBrowse = (accept: string, inputRef: RefObject<HTMLInputElement | null>) => {
@@ -218,9 +239,9 @@ export const DashboardPage = () => {
 
   const uploadSelectedFile = async (file: File) => {
     try {
-      await handleUpload(file, () => undefined);
+      await startUpload(file);
     } catch (error) {
-      showAction(error instanceof Error ? error.message : 'Upload failed.');
+      void error;
     }
   };
 
@@ -298,15 +319,9 @@ export const DashboardPage = () => {
           <header className="mb-3 pb-2.5 pt-1 sm:pb-3">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-            <div className="flex items-center gap-3 xl:hidden">
-                  <div>
-                    <p className="text-[16px] font-semibold tracking-tight text-slate-950">Drop</p>
-                    <p className="text-[12px] text-slate-500">Save and revisit anything</p>
-                  </div>
-                </div>
                 <div className="mt-2.5 xl:mt-0">
                   <p className="text-[20px] font-semibold tracking-tight text-slate-950 sm:text-[1.8rem]">Welcome back, {displayName}! 👋</p>
-                  <p className="mt-1 max-w-2xl text-[13px] leading-5 text-slate-500">Drop anything to save it and access anywhere.</p>
+                  <p className="mt-1 max-w-2xl text-[13px] leading-5 text-slate-500">Drop anything and access anywhere</p>
                 </div>
               </div>
 
@@ -339,7 +354,13 @@ export const DashboardPage = () => {
           <ApiBaseUrlBanner onApplied={refresh} />
 
           <section className="space-y-4">
-            <UploadDropzone onUpload={handleUpload} disabled={!token} />
+            <UploadDropzone
+              onUpload={startUpload}
+              disabled={!token || uploadBusy}
+              busy={uploadBusy}
+              progress={uploadProgress}
+              status={uploadStatus}
+            />
 
             <div className="hidden gap-2 sm:grid sm:grid-cols-2 xl:grid-cols-4">
               <Button type="button" variant="secondary" className="w-full justify-start px-3 py-2.5 text-left" onClick={handleCreateText} disabled={!token}>

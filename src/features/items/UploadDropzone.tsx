@@ -1,44 +1,27 @@
 import { useRef, useState, type DragEvent } from 'react';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
-import { formatFileSize } from '../../lib/format';
 import { PlusIcon } from '../../components/ui/Icon';
 import { clsx } from 'clsx';
 
 interface UploadDropzoneProps {
-  onUpload: (file: File, onProgress: (percent: number) => void) => Promise<void>;
+  onUpload: (file: File) => Promise<void>;
   disabled?: boolean;
+  busy?: boolean;
+  progress?: number;
+  status?: string | null;
 }
 
-export const UploadDropzone = ({ onUpload, disabled }: UploadDropzoneProps) => {
+export const UploadDropzone = ({ onUpload, disabled, busy = false, progress = 0, status = null }: UploadDropzoneProps) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [dragging, setDragging] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
-  const [progress, setProgress] = useState(0);
-
-  const upload = async (file: File) => {
-    setBusy(true);
-    setProgress(0);
-    setStatus(`${file.name} • ${formatFileSize(file.size)}`);
-    try {
-      await onUpload(file, setProgress);
-      setStatus('Upload complete');
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Upload failed');
-    } finally {
-      setBusy(false);
-      setProgress(0);
-      window.setTimeout(() => setStatus(null), 2200);
-    }
-  };
 
   const handleDrop = async (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setDragging(false);
     const file = event.dataTransfer.files[0];
     if (file && !disabled && !busy) {
-      await upload(file);
+      await onUpload(file);
     }
   };
 
@@ -77,9 +60,9 @@ export const UploadDropzone = ({ onUpload, disabled }: UploadDropzoneProps) => {
           Upload files, images, or create a text note from the quick actions below.
         </p>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-          <Button type="button" variant="secondary" onClick={() => inputRef.current?.click()} disabled={disabled || busy} className="min-w-36 px-4 py-2.5">
-            {busy ? <Spinner /> : <><PlusIcon /> Add something</>}
-          </Button>
+        <Button type="button" variant="secondary" onClick={() => inputRef.current?.click()} disabled={disabled || busy} className="min-w-36 px-4 py-2.5">
+          {busy ? <Spinner /> : <><PlusIcon /> Add something</>}
+        </Button>
           <span className="text-xs text-slate-500">Max 25 MB</span>
         </div>
 
@@ -94,18 +77,18 @@ export const UploadDropzone = ({ onUpload, disabled }: UploadDropzoneProps) => {
         {status ? <p className="mt-4 text-sm text-slate-600">{status}</p> : null}
       </div>
 
-      <input
-        ref={inputRef}
-        className="hidden"
-        type="file"
-        onChange={async (event) => {
-          const file = event.target.files?.[0];
-          event.target.value = '';
-          if (file && !disabled && !busy) {
-            await upload(file);
-          }
-        }}
-      />
+        <input
+          ref={inputRef}
+          className="hidden"
+          type="file"
+          onChange={async (event) => {
+            const file = event.target.files?.[0];
+            event.target.value = '';
+            if (file && !disabled && !busy) {
+              await onUpload(file);
+            }
+          }}
+        />
     </div>
   );
 };
