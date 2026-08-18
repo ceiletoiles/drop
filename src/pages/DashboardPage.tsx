@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { AppShell } from '../components/layout/AppShell';
 import { Button } from '../components/ui/Button';
 import {
@@ -13,6 +13,7 @@ import {
   PlusIcon,
   SearchIcon,
   TextIcon,
+  UserIcon,
   UploadIcon
 } from '../components/ui/Icon';
 import { useAuth } from '../features/auth/auth-context';
@@ -46,7 +47,7 @@ const navItems: Array<{
 ];
 
 const mobileNavItems: Array<{
-  key: ViewFilter | 'search' | 'more';
+  key: ViewFilter | 'search' | 'account';
   label: string;
   icon: typeof HomeIcon;
 }> = [
@@ -54,7 +55,7 @@ const mobileNavItems: Array<{
   { key: 'all', label: 'All', icon: ListIcon },
   { key: 'all', label: 'Add', icon: PlusIcon },
   { key: 'search', label: 'Search', icon: SearchIcon },
-  { key: 'more', label: 'Menu', icon: MenuIcon }
+  { key: 'account', label: 'Account', icon: UserIcon }
 ];
 
 const mobileQuickActionButtonClass =
@@ -67,11 +68,13 @@ const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slic
 
 export const DashboardPage = () => {
   const { session, user, loading: authLoading, signOut } = useAuth();
+  const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [activeFilter, setActiveFilter] = useState<ViewFilter>('home');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -81,6 +84,7 @@ export const DashboardPage = () => {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const apiConfigured = !needsApiOverride();
   const { items, loading, error, refresh } = useItems(session?.access_token ?? null, query, apiConfigured);
 
@@ -102,6 +106,17 @@ export const DashboardPage = () => {
       });
     }
   }, [activeFilter]);
+
+  useEffect(() => {
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!accountMenuRef.current?.contains(event.target as Node)) {
+        setAccountMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, []);
 
   const filteredItems = useMemo(() => {
     const list = [...items].filter((item) => {
@@ -260,15 +275,25 @@ export const DashboardPage = () => {
     }
   };
 
-  const navAction = (key: ViewFilter | 'search' | 'more') => {
+  const memberSince = user?.created_at
+    ? new Intl.DateTimeFormat('en-US', {
+        month: 'long',
+        day: '2-digit',
+        year: 'numeric'
+      }).format(new Date(user.created_at))
+    : 'Unknown';
+
+  const navAction = (key: ViewFilter | 'search' | 'account') => {
     if (key === 'search') {
       setActiveFilter('search');
       setMobileActionsOpen(false);
       return;
     }
-    if (key === 'more') {
-      setDrawerOpen(true);
+    if (key === 'account') {
       setMobileActionsOpen(false);
+      setDrawerOpen(false);
+      setAccountMenuOpen(false);
+      navigate('/account');
       return;
     }
     setActiveFilter(key);
@@ -334,19 +359,60 @@ export const DashboardPage = () => {
                 >
                   <MenuIcon />
                 </button>
-                <div className="hidden items-center gap-2.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 shadow-sm sm:flex">
-                  <div className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 text-xs font-semibold text-white">
-                    {getInitials(user?.email ?? displayName)}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="max-w-28 truncate text-sm font-medium text-slate-950">{displayName}</p>
-                  </div>
-                  <ChevronDownIcon className="text-slate-400" />
+                <div ref={accountMenuRef} className="relative hidden sm:block">
+                  <button
+                    type="button"
+                    onClick={() => setAccountMenuOpen((current) => !current)}
+                    className="flex items-center gap-2.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 shadow-sm transition hover:bg-slate-50"
+                    aria-haspopup="menu"
+                    aria-expanded={accountMenuOpen}
+                  >
+                    <div className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 text-xs font-semibold text-white">
+                      {getInitials(user?.email ?? displayName)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="max-w-28 truncate text-sm font-medium text-slate-950">{displayName}</p>
+                    </div>
+                    <ChevronDownIcon className="text-slate-400" />
+                  </button>
+
+                  {accountMenuOpen ? (
+                    <div className="absolute right-0 top-[calc(100%+0.75rem)] z-40 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.12)]">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAccountMenuOpen(false);
+                          navigate('/account');
+                        }}
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-100"
+                      >
+                        <span className="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-600">
+                          <UserIcon />
+                        </span>
+                        <span>
+                          <span className="block font-medium text-slate-950">My account</span>
+                          <span className="block text-xs text-slate-500">View profile</span>
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setAccountMenuOpen(false);
+                          await signOut();
+                        }}
+                        className="flex w-full items-center gap-3 border-t border-slate-100 px-4 py-3 text-left text-sm text-rose-600 transition hover:bg-rose-50"
+                      >
+                        <span className="grid h-9 w-9 place-items-center rounded-xl bg-rose-50 text-rose-600">
+                          <LogOutIcon />
+                        </span>
+                        <span>
+                          <span className="block font-medium">Log out</span>
+                          <span className="block text-xs text-rose-500">Sign out of this account</span>
+                        </span>
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
-                <Button type="button" variant="secondary" onClick={() => void signOut()} className="hidden sm:inline-flex">
-                  <LogOutIcon />
-                  Logout
-                </Button>
               </div>
             </div>
           </header>
@@ -354,51 +420,73 @@ export const DashboardPage = () => {
           <ApiBaseUrlBanner onApplied={refresh} />
 
           <section className="space-y-4">
-            <UploadDropzone
-              onUpload={startUpload}
-              disabled={!token || uploadBusy}
-              busy={uploadBusy}
-              progress={uploadProgress}
-              status={uploadStatus}
-            />
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)] xl:items-stretch">
+              <UploadDropzone
+                onUpload={startUpload}
+                disabled={!token || uploadBusy}
+                busy={uploadBusy}
+                progress={uploadProgress}
+                status={uploadStatus}
+              />
 
-            <div className="hidden gap-2 sm:grid sm:grid-cols-2 xl:grid-cols-4">
-              <Button type="button" variant="secondary" className="w-full justify-start px-3 py-2.5 text-left" onClick={handleCreateText} disabled={!token}>
-                <span className="grid h-8 w-8 place-items-center rounded-2xl bg-slate-100 text-slate-600">
-                  <TextIcon />
-                </span>
-                <span className="text-left">
-                  <span className="block text-[13px] font-medium text-slate-950">Create text note</span>
-                  <span className="block text-[11px] text-slate-500">Write something quick</span>
-                </span>
-              </Button>
-              <Button type="button" variant="secondary" className="w-full justify-start px-3 py-2.5 text-left" onClick={() => handleFileBrowse('', fileInputRef)} disabled={!token}>
-                <span className="grid h-8 w-8 place-items-center rounded-2xl bg-slate-100 text-slate-600">
-                  <UploadIcon />
-                </span>
-                <span className="text-left">
-                  <span className="block text-[13px] font-medium text-slate-950">Upload file</span>
-                  <span className="block text-[11px] text-slate-500">Any file type</span>
-                </span>
-              </Button>
-              <Button type="button" variant="secondary" className="w-full justify-start px-3 py-2.5 text-left" onClick={() => handleFileBrowse('image/*', imageInputRef)} disabled={!token}>
-                <span className="grid h-8 w-8 place-items-center rounded-2xl bg-slate-100 text-slate-600">
-                  <ImageIcon />
-                </span>
-                <span className="text-left">
-                  <span className="block text-[13px] font-medium text-slate-950">Upload image</span>
-                  <span className="block text-[11px] text-slate-500">PNG, JPG, GIF</span>
-                </span>
-              </Button>
-              <Button type="button" variant="secondary" className="w-full justify-start px-3 py-2.5 text-left" onClick={() => void handlePasteClipboard()} disabled={!token}>
-                <span className="grid h-8 w-8 place-items-center rounded-2xl bg-slate-100 text-slate-600">
-                  <PlusIcon />
-                </span>
-                <span className="text-left">
-                  <span className="block text-[13px] font-medium text-slate-950">Paste from clipboard</span>
-                  <span className="block text-[11px] text-slate-500">Save copied text</span>
-                </span>
-              </Button>
+              <div className="hidden grid-cols-1 gap-2 self-stretch xl:grid xl:h-full xl:min-h-0 xl:grid-rows-[repeat(4,minmax(0,1fr))]">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-full justify-start px-3 py-2.5 text-left !bg-transparent hover:!bg-slate-100 xl:h-full xl:min-h-0"
+                  onClick={handleCreateText}
+                  disabled={!token}
+                  >
+                  <span className="grid h-8 w-8 place-items-center rounded-2xl bg-slate-100 text-slate-600">
+                    <TextIcon />
+                  </span>
+                  <span className="text-left">
+                    <span className="block text-[13px] font-medium text-slate-950">Create text note</span>
+                  </span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-full justify-start px-3 py-2.5 text-left !bg-transparent hover:!bg-slate-100 xl:h-full xl:min-h-0"
+                  onClick={() => handleFileBrowse('', fileInputRef)}
+                  disabled={!token}
+                  >
+                  <span className="grid h-8 w-8 place-items-center rounded-2xl bg-slate-100 text-slate-600">
+                    <UploadIcon />
+                  </span>
+                  <span className="text-left">
+                    <span className="block text-[13px] font-medium text-slate-950">Upload file</span>
+                  </span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-full justify-start px-3 py-2.5 text-left !bg-transparent hover:!bg-slate-100 xl:h-full xl:min-h-0"
+                  onClick={() => handleFileBrowse('image/*', imageInputRef)}
+                  disabled={!token}
+                  >
+                  <span className="grid h-8 w-8 place-items-center rounded-2xl bg-slate-100 text-slate-600">
+                    <ImageIcon />
+                  </span>
+                  <span className="text-left">
+                    <span className="block text-[13px] font-medium text-slate-950">Upload image</span>
+                  </span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-full justify-start px-3 py-2.5 text-left !bg-transparent hover:!bg-slate-100 xl:h-full xl:min-h-0"
+                  onClick={() => void handlePasteClipboard()}
+                  disabled={!token}
+                  >
+                  <span className="grid h-8 w-8 place-items-center rounded-2xl bg-slate-100 text-slate-600">
+                    <PlusIcon />
+                  </span>
+                  <span className="text-left">
+                    <span className="block text-[13px] font-medium text-slate-950">Paste from clipboard</span>
+                  </span>
+                </Button>
+              </div>
             </div>
 
             <RecentItemsList
@@ -532,7 +620,6 @@ export const DashboardPage = () => {
               </span>
               <span className={mobileQuickActionTextClass}>
                 <span className="block text-[12px] font-medium leading-4 text-slate-950">Create text note</span>
-                <span className="block text-[10px] leading-[0.85rem] text-slate-500">Write something quick</span>
               </span>
             </Button>
             <Button
@@ -550,7 +637,6 @@ export const DashboardPage = () => {
               </span>
               <span className={mobileQuickActionTextClass}>
                 <span className="block text-[12px] font-medium leading-4 text-slate-950">Upload file</span>
-                <span className="block text-[10px] leading-[0.85rem] text-slate-500">Any file type</span>
               </span>
             </Button>
             <Button
@@ -568,7 +654,6 @@ export const DashboardPage = () => {
               </span>
               <span className={mobileQuickActionTextClass}>
                 <span className="block text-[12px] font-medium leading-4 text-slate-950">Upload image</span>
-                <span className="block text-[10px] leading-[0.85rem] text-slate-500">PNG, JPG, GIF</span>
               </span>
             </Button>
             <Button
@@ -586,7 +671,6 @@ export const DashboardPage = () => {
               </span>
               <span className={mobileQuickActionTextClass}>
                 <span className="block text-[12px] font-medium leading-4 text-slate-950">Paste from clipboard</span>
-                <span className="block text-[10px] leading-[0.85rem] text-slate-500">Save copied text</span>
               </span>
             </Button>
           </div>

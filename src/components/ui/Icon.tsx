@@ -151,3 +151,18 @@ export const LogOutIcon = ({ className, ...props }: IconProps) => (
     <path d="M19 12H9" />
   </svg>
 );
+
+export const UserIcon = ({ className, ...props }: IconProps) => (
+  <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
+    <path d="M20 21a8 8 0 1 0-16 0" />
+    <circle cx="12" cy="8" r="3.5" />
+  </svg>
+);
+
+export const PencilIcon = ({ className, ...props }: IconProps) => (
+  <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
+    <path d="M4 20h4" />
+    <path d="m14.5 5.5 4 4L8 20H4v-4Z" />
+    <path d="M13 7 17 11" />
+  </svg>
+);

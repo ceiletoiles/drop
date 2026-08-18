@@ -4,6 +4,7 @@ import { useAuth } from './features/auth/auth-context';
 import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { AccountPage } from './pages/AccountPage';
 import { SignupPage } from './pages/SignupPage';
 import { Spinner } from './components/ui/Spinner';
 
@@ -58,6 +59,14 @@ export const App = () => (
       element={
         <ProtectedRoute>
           <DashboardPage />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/account"
+      element={
+        <ProtectedRoute>
+          <AccountPage />
         </ProtectedRoute>
       }
     />

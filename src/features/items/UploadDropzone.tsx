@@ -30,8 +30,8 @@ export const UploadDropzone = ({ onUpload, disabled, busy = false, progress = 0,
       className={clsx(
         'rounded-[2rem] border border-dashed px-4 py-5 transition sm:px-5 sm:py-6',
         dragging
-          ? 'border-indigo-300 bg-[linear-gradient(180deg,_rgba(239,246,255,0.9),_rgba(255,255,255,0.96))]'
-          : 'border-indigo-200/90 bg-[linear-gradient(180deg,_rgba(255,255,255,0.92),_rgba(244,247,255,0.95))]'
+          ? 'border-[#8B7AE8] bg-[#F5F3FF]'
+          : 'border-[#8B7AE8] bg-[#F5F3FF]'
       )}
       onDragEnter={() => setDragging(true)}
       onDragLeave={() => setDragging(false)}
@@ -57,12 +57,12 @@ export const UploadDropzone = ({ onUpload, disabled, busy = false, progress = 0,
         </svg>
         <h2 className="mt-3 text-xl font-semibold tracking-tight text-slate-950 sm:text-[1.7rem]">Drop anything here</h2>
         <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
-          Upload files, images, or create a text note from the quick actions below.
+          Upload files, images or create a text note using the quick actions on the right.
         </p>
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-        <Button type="button" variant="secondary" onClick={() => inputRef.current?.click()} disabled={disabled || busy} className="min-w-36 px-4 py-2.5">
-          {busy ? <Spinner /> : <><PlusIcon /> Add something</>}
-        </Button>
+        <div className="mt-4 flex flex-col items-center gap-1.5">
+          <Button type="button" variant="secondary" onClick={() => inputRef.current?.click()} disabled={disabled || busy} className="min-w-36 px-4 py-2.5">
+            {busy ? <Spinner /> : <><PlusIcon /> Add something</>}
+          </Button>
           <span className="text-xs text-slate-500">Max 25 MB</span>
         </div>
 
