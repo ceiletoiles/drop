@@ -2,6 +2,7 @@ import type { Env } from './types';
 import { getAuthenticatedUser } from './lib/auth';
 import { corsResponse, errorResponse, withCors } from './lib/response';
 import { createText, deleteItem, downloadItemFile, listItems, updateText, uploadItem } from './lib/items';
+import { listActivities } from './lib/activity';
 import { MAX_SEARCH_CHARS } from '../../shared/constants';
 
 const readBody = async (request: Request) => {
@@ -22,6 +23,12 @@ const handleItems = async (request: Request, env: Env, userId: string) => {
     const query = (url.searchParams.get('query') ?? '').slice(0, MAX_SEARCH_CHARS);
     const items = await listItems(env, userId, query);
     return corsResponse(request, { items });
+  }
+
+  if (method === 'GET' && url.pathname === '/api/activity') {
+    const limit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10);
+    const activities = await listActivities(env, userId, Number.isFinite(limit) ? limit : 20);
+    return corsResponse(request, { activities });
   }
 
   if (method === 'POST' && url.pathname === '/api/items/text') {

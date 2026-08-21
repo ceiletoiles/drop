@@ -5,6 +5,7 @@ import type { FileMetadata, ItemSummary, ItemType } from '../../../shared/types'
 import { sanitizeFilename } from '../../../shared/utils';
 import type { Env } from '../types';
 import { deleteFile, getFile, putFile } from './storage';
+import { recordActivity } from './activity';
 
 interface ItemRow {
   id: string;
@@ -51,6 +52,31 @@ const mapItem = (item: ItemRow, fileRow?: FileRow, textRow?: TextRow): ItemSumma
   file: fileRow ? toFileMetadata(fileRow) : undefined,
   text: textRow ? { content: textRow.content } : undefined
 });
+
+const getTextSizeBytes = (value: string) => new TextEncoder().encode(value).length;
+const getFileExtension = (filename?: string | null) => {
+  if (!filename) return '';
+  const normalized = filename.trim().toLowerCase();
+  if (!normalized) return '';
+  const lastDot = normalized.lastIndexOf('.');
+  if (lastDot < 0 || lastDot === normalized.length - 1) return '';
+  return normalized.slice(lastDot + 1);
+};
+
+const getActivityFileEntity = (filename?: string | null, mimeType?: string | null) => {
+  const extension = getFileExtension(filename);
+  const normalizedMimeType = mimeType?.trim().toLowerCase() ?? '';
+  const isImage =
+    normalizedMimeType.startsWith('image/') ||
+    ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'bmp', 'ico', 'tiff', 'tif', 'svg'].includes(extension);
+
+  return {
+    entityKind: isImage ? 'image' : 'file',
+    entityDetail: extension ? extension.toUpperCase() : null
+  } as const;
+};
+
+const logActivity = (env: Env, payload: Parameters<typeof recordActivity>[1]) => recordActivity(env, payload).catch(() => undefined);
 
 const getItemRows = async (db: SupabaseClient, userId: string) => {
   const { data: items, error: itemsError } = await db
@@ -129,6 +155,16 @@ export const createText = async (env: Env, userId: string, payload: { title: str
     throw textError;
   }
 
+  await logActivity(env, {
+    userId,
+    action: 'create',
+    title: item.title,
+    itemId: item.id,
+    itemType: 'text',
+    entityKind: 'note',
+    sizeBytes: getTextSizeBytes(parsed.content)
+  });
+
   return mapItem(item as ItemRow, undefined, { item_id: item.id, content: parsed.content });
 };
 
@@ -168,6 +204,16 @@ export const updateText = async (env: Env, userId: string, itemId: string, paylo
 
   const { data: textRow } = await db.from('text_items').select('item_id,content').eq('item_id', itemId).single();
 
+  await logActivity(env, {
+    userId,
+    action: 'edit',
+    title: (refreshed as ItemRow).title,
+    itemId,
+    itemType: 'text',
+    entityKind: 'note',
+    sizeBytes: textRow?.content ? getTextSizeBytes(textRow.content) : null
+  });
+
   return mapItem(refreshed as ItemRow, undefined, textRow ?? undefined);
 };
 
@@ -182,6 +228,17 @@ export const deleteItem = async (env: Env, userId: string, itemId: string) => {
 
   if (itemError || !item) throw itemError ?? new Error('Not found.');
 
+  let activityPayload:
+    | {
+        userId: string;
+        action: 'delete';
+        title: string;
+        itemId: string;
+        itemType: 'file' | 'text';
+        sizeBytes: number | null;
+      }
+    | null = null;
+
   if (item.type === 'file') {
     const { data: fileRow, error: fileError } = await db
       .from('files')
@@ -189,7 +246,36 @@ export const deleteItem = async (env: Env, userId: string, itemId: string) => {
       .eq('item_id', itemId)
       .single();
     if (fileError || !fileRow) throw fileError ?? new Error('File metadata missing.');
+    activityPayload = {
+      userId,
+      action: 'delete',
+      title: item.title,
+      itemId,
+      itemType: 'file',
+      ...getActivityFileEntity(fileRow.original_name, fileRow.mime_type),
+      sizeBytes: fileRow.size
+    };
     await deleteFile(env, fileRow.storage_key);
+  } else {
+    const { data: textRow, error: textError } = await db
+      .from('text_items')
+      .select('item_id,content')
+      .eq('item_id', itemId)
+      .single();
+    if (textError) throw textError;
+    activityPayload = {
+      userId,
+      action: 'delete',
+      title: item.title,
+      itemId,
+      itemType: 'text',
+      entityKind: 'note',
+      sizeBytes: textRow?.content ? getTextSizeBytes(textRow.content) : null
+    };
+  }
+
+  if (activityPayload) {
+    await logActivity(env, activityPayload);
   }
 
   const { error: deleteError } = await db.from('text_items').delete().eq('item_id', itemId);
@@ -244,6 +330,16 @@ export const uploadItem = async (
       await deleteFile(env, storageKey);
       throw fileError;
     }
+
+    await logActivity(env, {
+      userId,
+      action: 'upload',
+      title: item.title,
+      itemId: item.id,
+      itemType: 'file',
+      ...getActivityFileEntity(safeName, file.type || 'application/octet-stream'),
+      sizeBytes: file.size
+    });
 
     return mapItem(item as ItemRow, {
       item_id: item.id,

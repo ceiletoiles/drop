@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../../lib/supabase';
 import { AuthContext, type AuthContextValue } from './auth-context';
@@ -6,6 +6,20 @@ import { AuthContext, type AuthContextValue } from './auth-context';
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const lastLoggedSessionRef = useRef<string | null>(null);
+
+  const logActivity = (payload: { userId: string; action: 'sign_in' | 'sign_out'; title: string }) => {
+    if (!supabase) return;
+
+    void supabase
+      .from('activity_log')
+      .insert({
+        user_id: payload.userId,
+        action: payload.action,
+        title: payload.title
+      })
+      .catch(() => undefined);
+  };
 
   useEffect(() => {
     if (!supabase) {
@@ -20,6 +34,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .then(({ data }) => {
         if (alive) {
           setSession(data.session);
+          lastLoggedSessionRef.current = data.session?.access_token ?? null;
           setLoading(false);
         }
       })
@@ -27,8 +42,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (alive) setLoading(false);
       });
 
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
       setSession(nextSession);
+      if (event === 'SIGNED_IN' && nextSession?.access_token && lastLoggedSessionRef.current !== nextSession.access_token) {
+        lastLoggedSessionRef.current = nextSession.access_token;
+        logActivity({ userId: nextSession.user.id, action: 'sign_in', title: 'Signed in' });
+      }
     });
 
     return () => {
@@ -70,8 +89,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     },
     signOut: async () => {
       if (!supabase) throw new Error('Supabase is not configured.');
+      if (session?.user?.id) {
+        logActivity({ userId: session.user.id, action: 'sign_out', title: 'Signed out' });
+      }
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      setSession(null);
+      lastLoggedSessionRef.current = null;
     }
   };
 

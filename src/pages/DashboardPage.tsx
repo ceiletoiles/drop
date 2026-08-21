@@ -398,7 +398,12 @@ export const DashboardPage = () => {
                         type="button"
                         onClick={async () => {
                           setAccountMenuOpen(false);
-                          await signOut();
+                          try {
+                            await signOut();
+                            navigate('/login', { replace: true });
+                          } catch (error) {
+                            showAction(error instanceof Error ? error.message : 'Logout failed.');
+                          }
                         }}
                         className="flex w-full items-center gap-3 border-t border-slate-100 px-4 py-3 text-left text-sm text-rose-600 transition hover:bg-rose-50"
                       >
@@ -579,7 +584,19 @@ export const DashboardPage = () => {
                 <p className="text-xs text-slate-500">{user?.email ?? 'Account'}</p>
               </div>
             </div>
-            <Button type="button" variant="secondary" onClick={() => void signOut()} className="mt-4 w-full justify-center">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={async () => {
+                try {
+                  await signOut();
+                  navigate('/login', { replace: true });
+                } catch (error) {
+                  showAction(error instanceof Error ? error.message : 'Logout failed.');
+                }
+              }}
+              className="mt-4 w-full justify-center"
+            >
               <LogOutIcon />
               Logout
             </Button>
