@@ -2,23 +2,45 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../../lib/supabase';
 import { AuthContext, type AuthContextValue } from './auth-context';
+import { apiFetch } from '../../lib/http';
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const lastLoggedSessionRef = useRef<string | null>(null);
+  const pendingSignInKey = 'drop.pending_sign_in';
 
-  const logActivity = (payload: { userId: string; action: 'sign_in' | 'sign_out'; title: string }) => {
-    if (!supabase) return;
+  const delay = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
+  const markPendingSignIn = () => {
+    window.sessionStorage.setItem(pendingSignInKey, String(Date.now()));
+  };
 
-    void supabase
-      .from('activity_log')
-      .insert({
-        user_id: payload.userId,
+  const consumePendingSignIn = () => {
+    const pending = window.sessionStorage.getItem(pendingSignInKey);
+    if (!pending) return false;
+    window.sessionStorage.removeItem(pendingSignInKey);
+    return true;
+  };
+
+  const logActivity = async (payload: { token: string; action: 'sign_in' | 'sign_out'; retries?: number }) => {
+    try {
+      await apiFetch('/api/activity', {
+        method: 'POST',
+        token: payload.token,
+        body: JSON.stringify({ action: payload.action })
+      });
+    } catch {
+      if ((payload.retries ?? 0) <= 0) {
+        return;
+      }
+
+      await delay(400);
+      await logActivity({
+        token: payload.token,
         action: payload.action,
-        title: payload.title
-      })
-      .catch(() => undefined);
+        retries: (payload.retries ?? 0) - 1
+      });
+    }
   };
 
   useEffect(() => {
@@ -34,7 +56,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .then(({ data }) => {
         if (alive) {
           setSession(data.session);
-          lastLoggedSessionRef.current = data.session?.access_token ?? null;
+          if (!window.sessionStorage.getItem(pendingSignInKey)) {
+            lastLoggedSessionRef.current = data.session?.access_token ?? null;
+          }
           setLoading(false);
         }
       })
@@ -44,10 +68,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
       setSession(nextSession);
-      if (event === 'SIGNED_IN' && nextSession?.access_token && lastLoggedSessionRef.current !== nextSession.access_token) {
-        lastLoggedSessionRef.current = nextSession.access_token;
-        logActivity({ userId: nextSession.user.id, action: 'sign_in', title: 'Signed in' });
-      }
     });
 
     return () => {
@@ -56,6 +76,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
+  useEffect(() => {
+    if (!session?.access_token || !session.user?.id) return;
+    if (!consumePendingSignIn()) return;
+    if (lastLoggedSessionRef.current === session.access_token) return;
+
+    lastLoggedSessionRef.current = session.access_token;
+    void logActivity({ token: session.access_token, action: 'sign_in', retries: 2 });
+  }, [session?.access_token, session?.user?.id]);
+
   const value: AuthContextValue = {
     user: session?.user ?? null,
     session,
@@ -63,8 +92,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     configured: Boolean(supabase),
     signIn: async (email, password) => {
       if (!supabase) throw new Error('Supabase is not configured.');
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      markPendingSignIn();
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
+      void data.session;
     },
     signUp: async (email, password) => {
       if (!supabase) throw new Error('Supabase is not configured.');
@@ -79,6 +110,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     },
     signInWithGoogle: async () => {
       if (!supabase) throw new Error('Supabase is not configured.');
+      markPendingSignIn();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -90,7 +122,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     signOut: async () => {
       if (!supabase) throw new Error('Supabase is not configured.');
       if (session?.user?.id) {
-        logActivity({ userId: session.user.id, action: 'sign_out', title: 'Signed out' });
+        void logActivity({ token: session.access_token, action: 'sign_out' });
       }
       const { error } = await supabase.auth.signOut();
       if (error) throw error;

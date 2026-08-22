@@ -2,7 +2,7 @@ import type { Env } from './types';
 import { getAuthenticatedUser } from './lib/auth';
 import { corsResponse, errorResponse, withCors } from './lib/response';
 import { createText, deleteItem, downloadItemFile, listItems, updateText, uploadItem } from './lib/items';
-import { listActivities } from './lib/activity';
+import { listActivities, recordActivity } from './lib/activity';
 import { MAX_SEARCH_CHARS } from '../../shared/constants';
 
 const readBody = async (request: Request) => {
@@ -29,6 +29,22 @@ const handleItems = async (request: Request, env: Env, userId: string) => {
     const limit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10);
     const activities = await listActivities(env, userId, Number.isFinite(limit) ? limit : 20);
     return corsResponse(request, { activities });
+  }
+
+  if (method === 'POST' && url.pathname === '/api/activity') {
+    const body = await readBody(request);
+    const action = body.action;
+    if (action !== 'sign_in' && action !== 'sign_out') {
+      return errorResponse(400, 'Invalid activity action.');
+    }
+
+    await recordActivity(env, {
+      userId,
+      action,
+      title: action === 'sign_in' ? 'Signed in' : 'Signed out'
+    });
+
+    return corsResponse(request, { ok: true }, { status: 201 });
   }
 
   if (method === 'POST' && url.pathname === '/api/items/text') {

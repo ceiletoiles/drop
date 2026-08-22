@@ -168,10 +168,17 @@ export const AccountPage = () => {
 
     if (!entityKind) return '';
 
-    const entityLabel = entityKind === 'note' ? 'Note' : entityKind === 'image' ? 'Image' : 'File';
-    const detail = entityKind === 'note' ? '' : activity.entityDetail ? activity.entityDetail.toUpperCase() : '';
+    if (entityKind === 'note') {
+      return 'Note';
+    }
 
-    return detail ? `${entityLabel} - ${detail}` : entityLabel;
+    const detail = activity.entityDetail ? activity.entityDetail.toUpperCase() : '';
+
+    if (entityKind === 'file') {
+      return detail ? `${activity.title} - ${detail}` : activity.title;
+    }
+
+    return detail ? `Image - ${detail}` : 'Image';
   };
 
   const getActivityLabel = (activity: ActivityItem) => {
