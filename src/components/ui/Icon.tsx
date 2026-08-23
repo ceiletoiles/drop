@@ -51,6 +51,29 @@ export const FileIcon = ({ className, ...props }: IconProps) => (
   </svg>
 );
 
+export const ClockIcon = ({ className, ...props }: IconProps) => (
+  <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
+    <circle cx="12" cy="12" r="8" />
+    <path d="M12 8v5l3 2" />
+  </svg>
+);
+
+export const CalendarIcon = ({ className, ...props }: IconProps) => (
+  <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
+    <rect x="4" y="5.5" width="16" height="14.5" rx="2" />
+    <path d="M7.5 3.5V7" />
+    <path d="M16.5 3.5V7" />
+    <path d="M4 9h16" />
+  </svg>
+);
+
+export const LockIcon = ({ className, ...props }: IconProps) => (
+  <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
+    <rect x="5" y="11" width="14" height="9" rx="2" />
+    <path d="M8 11V8.5a4 4 0 0 1 8 0V11" />
+  </svg>
+);
+
 export const ImageIcon = ({ className, ...props }: IconProps) => (
   <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
     <rect x="4" y="5" width="16" height="14" rx="2" />

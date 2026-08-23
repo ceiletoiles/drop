@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { Spinner } from '../../components/ui/Spinner';
-import { CopyIcon, DownloadIcon, ListIcon, MoreHorizontalIcon, PencilIcon, SearchIcon, ShareIcon, SortIcon, TextIcon, TrashIcon } from '../../components/ui/Icon';
+import { CalendarIcon, ClockIcon, CopyIcon, DownloadIcon, FileIcon, ListIcon, LockIcon, MoreHorizontalIcon, PencilIcon, SearchIcon, ShareIcon, SortIcon, TextIcon, TrashIcon } from '../../components/ui/Icon';
 import { FileTypeIcon } from '../../components/ui/FileTypeIcon';
 import { formatFileSize, formatRelativeTime } from '../../lib/format';
 import { getFileTypeLabel } from '../../lib/file';
@@ -154,17 +154,14 @@ export const RecentItemsList = ({
     </div>
   );
 
-  const infoSummary = infoItem
-    ? [
-        getFileTypeLabel({ itemType: infoItem.type, filename: infoItem.file?.originalName, mimeType: infoItem.file?.mimeType }),
-        infoItem.type === 'file' && infoItem.file ? formatFileSize(infoItem.file.size) : null,
-        formatRelativeTime(infoItem.createdAt),
-        getExpirationSummary(infoItem.expirationType, infoItem.expiresAt, infoItem.type),
-        infoItem.share
-          ? `Shared${infoItem.share.downloadCount > 0 ? ` · ${infoItem.share.downloadCount} ${infoItem.type === 'text' ? 'copies' : 'downloads'}` : ''}`
-          : 'Not shared'
-      ].filter((value): value is string => Boolean(value))
-    : [];
+  const shareLabel = infoItem
+    ? infoItem.share
+      ? `Shared${infoItem.share.downloadCount > 0 ? ` · ${infoItem.share.downloadCount} ${infoItem.type === 'text' ? 'copies' : 'downloads'}` : ''}`
+      : 'Not shared'
+    : '';
+  const infoSizeLabel = infoItem?.type === 'file' && infoItem.file ? formatFileSize(infoItem.file.size) : null;
+  const infoCreatedDateLabel = infoItem?.createdAt ? new Date(infoItem.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : null;
+  const infoExpirationLabel = infoItem ? getExpirationSummary(infoItem.expirationType, infoItem.expiresAt, infoItem.type) : '';
 
   const headerCopy = (
     <div className="min-w-0 flex min-h-12 flex-col justify-center">
@@ -264,7 +261,7 @@ export const RecentItemsList = ({
             const isMenuOpen = menuState?.itemId === item.id;
 
             return (
-              <li key={item.id} className="relative py-3">
+              <li key={item.id} className="py-3">
                 <div className="flex items-start gap-3 transition">
                   <button
                     type="button"
@@ -272,7 +269,7 @@ export const RecentItemsList = ({
                       if (isText) onEditText(item);
                       if (!isText) void onDownload(item);
                     }}
-                    className="flex min-w-0 flex-1 items-center gap-3 pr-40 text-left sm:pr-0"
+                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
                   >
                     <FileTypeIcon
                       itemType={item.type}
@@ -306,7 +303,7 @@ export const RecentItemsList = ({
                     </div>
                   </button>
 
-                  <div className="absolute right-0 top-3 flex shrink-0 items-center justify-end gap-1.5 sm:static sm:gap-2.5">
+                  <div className="ml-auto flex shrink-0 items-center justify-end gap-2 sm:gap-2.5">
                     {isText ? (
                       <Button
                         type="button"
@@ -461,28 +458,99 @@ export const RecentItemsList = ({
       >
         {infoItem ? (
           <div className="space-y-4">
-            <div className="rounded-[1.75rem] border border-slate-100 bg-[linear-gradient(180deg,_rgba(248,250,252,0.96),_rgba(255,255,255,0.96))] px-4 py-4 shadow-[0_1px_0_rgba(255,255,255,0.9)_inset]">
-              <div className="flex items-center gap-3">
-                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white text-slate-600 shadow-sm ring-1 ring-slate-100">
+            <div className="rounded-[1.5rem] border border-slate-200 bg-white/90 px-3 py-3 shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
+              <div className="flex items-center gap-2.5">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[1rem] bg-[linear-gradient(180deg,_rgba(168,85,247,0.10),_rgba(147,197,253,0.12))] text-violet-500 ring-1 ring-violet-100">
                   <FileTypeIcon
                     itemType={infoItem.type}
                     filename={infoItem.file?.originalName}
                     mimeType={infoItem.file?.mimeType}
-                    className="h-6 w-6"
+                    className="h-5 w-5"
                   />
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-base font-semibold text-slate-950">{infoItem.title}</p>
-                  <p className="mt-1 text-sm text-slate-500">
+                <div className="min-w-0">
+                  <p className="truncate text-[0.92rem] font-semibold tracking-tight text-slate-950 sm:text-[1rem]">{infoItem.title}</p>
+                  <p className="mt-0.5 text-[0.8rem] text-slate-500">
                     {getFileTypeLabel({ itemType: infoItem.type, filename: infoItem.file?.originalName, mimeType: infoItem.file?.mimeType })}
                   </p>
                 </div>
               </div>
             </div>
 
-            <p className="rounded-[1.5rem] bg-slate-50 px-4 py-4 text-sm leading-7 text-slate-600">
-              {infoSummary.join(' · ')}
-            </p>
+            <div>
+              <p className="mb-2.5 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-slate-500">About this item</p>
+
+              <div className="space-y-2.5">
+                <div className="flex items-stretch gap-2.5 rounded-[1.35rem] border border-slate-200 bg-white px-3 py-3 shadow-[0_6px_20px_rgba(15,23,42,0.03)]">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[0.95rem] bg-violet-50 text-violet-500">
+                    <FileIcon className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[0.86rem] font-semibold text-slate-950">File type</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[0.82rem] text-slate-700">
+                      <span>{getFileTypeLabel({ itemType: infoItem.type, filename: infoItem.file?.originalName, mimeType: infoItem.file?.mimeType })}</span>
+                      {infoItem.type === 'file' && infoItem.file ? (
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[0.72rem] font-medium text-slate-700">
+                          {infoItem.file.originalName.split('.').pop()?.toUpperCase() ?? 'FILE'}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                  {infoSizeLabel ? (
+                    <div className="shrink-0 text-right">
+                      <p className="text-[0.95rem] font-semibold tracking-tight text-slate-950">{infoSizeLabel}</p>
+                      <p className="mt-0.5 text-[0.68rem] text-slate-500">Size</p>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="flex items-stretch gap-2.5 rounded-[1.35rem] border border-slate-200 bg-white px-3 py-3 shadow-[0_6px_20px_rgba(15,23,42,0.03)]">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[0.95rem] bg-sky-50 text-sky-500">
+                    <ClockIcon className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[0.86rem] font-semibold text-slate-950">Added</p>
+                    <p className="mt-1 text-[0.84rem] text-slate-900">{formatRelativeTime(infoItem.createdAt)}</p>
+                    {infoCreatedDateLabel ? <p className="mt-0.5 text-[0.72rem] text-slate-500">{infoCreatedDateLabel}</p> : null}
+                  </div>
+                </div>
+
+                <div className="flex items-stretch gap-2.5 rounded-[1.35rem] border border-slate-200 bg-white px-3 py-3 shadow-[0_6px_20px_rgba(15,23,42,0.03)]">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[0.95rem] bg-emerald-50 text-emerald-500">
+                    <CalendarIcon className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[0.86rem] font-semibold text-slate-950">Available for</p>
+                    <p className="mt-1 text-[0.84rem] text-slate-900">{infoExpirationLabel}</p>
+                    <p className="mt-0.5 text-[0.72rem] leading-5 text-slate-500">Auto deletes after the expiration period.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-stretch gap-2.5 rounded-[1.35rem] border border-slate-200 bg-white px-3 py-3 shadow-[0_6px_20px_rgba(15,23,42,0.03)]">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[0.95rem] bg-amber-50 text-amber-500">
+                    <LockIcon className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[0.86rem] font-semibold text-slate-950">Access</p>
+                    <p className="mt-1 text-[0.84rem] text-slate-900">{infoItem.share ? 'Shared' : 'Private'}</p>
+                    <p className="mt-0.5 text-[0.72rem] leading-5 text-slate-500">
+                      {infoItem.share ? 'Anyone with the link can open this item.' : 'Only you can access this item.'}
+                    </p>
+                  </div>
+                  <div className="shrink-0">
+                    <div
+                      className={clsx(
+                        'inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-[0.72rem] font-medium',
+                        infoItem.share ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-700'
+                      )}
+                    >
+                      <LockIcon className="h-3 w-3" />
+                      <span>{shareLabel}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         ) : null}
       </Modal>

@@ -729,17 +729,19 @@ export const DashboardPage = () => {
 
           <section className="space-y-4">
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)] xl:items-stretch">
-              <UploadDropzone
-                onUpload={handleUploadFiles}
-                onBrowse={() => handleFileBrowse('', fileInputRef)}
-                onCancelUpload={cancelUpload}
-                disabled={!token}
-                busy={uploadBusy}
-                uploads={uploadItems}
-                status={uploadStatus}
-              />
+              <div className="min-w-0">
+                <UploadDropzone
+                  onUpload={handleUploadFiles}
+                  onBrowse={() => handleFileBrowse('', fileInputRef)}
+                  onCancelUpload={cancelUpload}
+                  disabled={!token}
+                  busy={uploadBusy}
+                  uploads={uploadItems}
+                  status={uploadStatus}
+                />
+              </div>
 
-              <div className="hidden grid-cols-1 gap-2 self-stretch xl:grid xl:h-full xl:min-h-0 xl:grid-rows-[repeat(4,minmax(0,1fr))]">
+              <div className="hidden min-w-0 grid-cols-1 gap-2 self-stretch xl:grid xl:h-full xl:min-h-0 xl:grid-rows-[repeat(4,minmax(0,1fr))]">
                 <Button
                   type="button"
                   variant="secondary"

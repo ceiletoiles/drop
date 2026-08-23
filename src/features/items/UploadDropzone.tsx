@@ -72,17 +72,17 @@ export const UploadDropzone = ({
         </div>
 
         {uploads.length > 0 ? (
-          <div className="mt-4 w-full max-w-md space-y-2 text-left">
+          <div className="mt-4 w-full max-w-full min-w-0 space-y-2 overflow-hidden text-left">
             {uploads.map((upload) => (
-              <div key={upload.id} className="rounded-2xl border border-slate-200/80 bg-white/75 px-3 py-2.5 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
+              <div key={upload.id} className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-slate-200/80 bg-white/75 px-3 py-2.5 shadow-sm">
+                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-slate-950">{upload.name}</p>
                     <p className="mt-0.5 text-xs text-slate-500">{Math.max(upload.size / 1024 / 1024, 0).toFixed(1)} MB</p>
                   </div>
                   <span
                     className={clsx(
-                      'rounded-full px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]',
+                      'self-start rounded-full px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] sm:shrink-0',
                       upload.status === 'completed'
                         ? 'bg-emerald-50 text-emerald-700'
                         : upload.status === 'failed'
@@ -97,7 +97,7 @@ export const UploadDropzone = ({
                     {upload.status}
                   </span>
                 </div>
-                <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+                <div className="mt-2 h-2 w-full min-w-0 max-w-full overflow-hidden rounded-full bg-slate-100">
                   <div
                     className={clsx(
                       'h-full rounded-full transition-all',
@@ -112,9 +112,9 @@ export const UploadDropzone = ({
                     style={{ width: `${Math.min(Math.max(upload.progress, 0), 100)}%` }}
                   />
                 </div>
-                <div className="mt-1 flex items-center justify-between gap-3 text-xs text-slate-500">
+                <div className="mt-1 flex min-w-0 flex-col gap-1 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
                   <span>{upload.message ?? (upload.status === 'completed' ? 'Uploaded' : upload.status === 'failed' ? 'Upload failed' : upload.status === 'cancelled' ? 'Cancelled' : 'Uploading')}</span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-2 self-start sm:self-auto">
                     <span>{Math.round(upload.progress)}%</span>
                     {upload.status === 'uploading' || upload.status === 'queued' ? (
                       <button
