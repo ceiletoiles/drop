@@ -235,6 +235,8 @@ export const deleteItem = async (env: Env, userId: string, itemId: string) => {
         title: string;
         itemId: string;
         itemType: 'file' | 'text';
+        entityKind?: 'note' | 'file' | 'image' | null;
+        entityDetail?: string | null;
         sizeBytes: number | null;
       }
     | null = null;

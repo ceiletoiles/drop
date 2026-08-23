@@ -1,27 +1,45 @@
-import { useRef, useState, type DragEvent } from 'react';
+import { useState, type DragEvent } from 'react';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
-import { PlusIcon } from '../../components/ui/Icon';
+import { CloudUploadIcon, PlusIcon } from '../../components/ui/Icon';
 import { clsx } from 'clsx';
 
+export interface UploadItemState {
+  id: string;
+  name: string;
+  size: number;
+  progress: number;
+  status: 'queued' | 'uploading' | 'completed' | 'failed' | 'cancelled';
+  message?: string | null;
+}
+
 interface UploadDropzoneProps {
-  onUpload: (file: File) => Promise<void>;
+  onUpload: (files: File[]) => Promise<void>;
+  onBrowse: () => void;
+  onCancelUpload: (uploadId: string) => void;
   disabled?: boolean;
   busy?: boolean;
-  progress?: number;
+  uploads?: UploadItemState[];
   status?: string | null;
 }
 
-export const UploadDropzone = ({ onUpload, disabled, busy = false, progress = 0, status = null }: UploadDropzoneProps) => {
-  const inputRef = useRef<HTMLInputElement | null>(null);
+export const UploadDropzone = ({
+  onUpload,
+  onBrowse,
+  onCancelUpload,
+  disabled,
+  busy = false,
+  uploads = [],
+  status = null
+}: UploadDropzoneProps) => {
   const [dragging, setDragging] = useState(false);
 
   const handleDrop = async (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setDragging(false);
-    const file = event.dataTransfer.files[0];
-    if (file && !disabled && !busy) {
-      await onUpload(file);
+    const files = Array.from(event.dataTransfer.files ?? []);
+    if (files.length && !disabled) {
+      await onUpload(files);
     }
   };
 
@@ -29,9 +47,7 @@ export const UploadDropzone = ({ onUpload, disabled, busy = false, progress = 0,
     <div
       className={clsx(
         'rounded-[2rem] border border-dashed px-4 py-5 transition sm:px-5 sm:py-6',
-        dragging
-          ? 'border-[#8B7AE8] bg-[#F5F3FF]'
-          : 'border-[#8B7AE8] bg-[#F5F3FF]'
+        dragging ? 'border-indigo-400 bg-indigo-50 shadow-[0_0_0_1px_rgba(99,102,241,0.18)]' : 'border-[#8B7AE8] bg-[#F5F3FF]'
       )}
       onDragEnter={() => setDragging(true)}
       onDragLeave={() => setDragging(false)}
@@ -39,56 +55,84 @@ export const UploadDropzone = ({ onUpload, disabled, busy = false, progress = 0,
       onDrop={handleDrop}
     >
       <div className="flex flex-col items-center text-center">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          id="Upload--Streamline-Outlined-Material"
-          height="24"
-          width="24"
-          className="h-6 w-6 text-slate-950"
-          aria-hidden="true"
-        >
-          <path
-            fill="#000000"
-            d="M11.25 16.175V6.9l-3 3 -1.075 -1.075L12 4l4.825 4.825 -1.075 1.075 -3 -3v9.275h-1.5ZM5.5 20c-0.4 0 -0.75 -0.15 -1.05 -0.45 -0.3 -0.3 -0.45 -0.65 -0.45 -1.05v-3.575h1.5V18.5h13v-3.575h1.5V18.5c0 0.4 -0.15 0.75 -0.45 1.05 -0.3 0.3 -0.65 0.45 -1.05 0.45H5.5Z"
-            strokeWidth="0.5"
-          />
-        </svg>
-        <h2 className="mt-3 text-xl font-semibold tracking-tight text-slate-950 sm:text-[1.7rem]">Drop anything here</h2>
+        <div className={clsx('grid h-12 w-12 place-items-center rounded-3xl', dragging ? 'bg-white text-indigo-600 shadow-sm' : 'bg-white/80 text-slate-700 shadow-sm')}>
+          <CloudUploadIcon className="h-6 w-6" />
+        </div>
+        <h2 className="mt-3 text-xl font-semibold tracking-tight text-slate-950 sm:text-[1.7rem]">
+          {dragging ? 'Release to upload' : 'Drop files, images, or paste text'}
+        </h2>
         <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
-          Upload files, images or create a text note using the quick actions on the right.
+          Drag one or more files here, paste text or images, or use the quick actions on the right.
         </p>
         <div className="mt-4 flex flex-col items-center gap-1.5">
-          <Button type="button" variant="secondary" onClick={() => inputRef.current?.click()} disabled={disabled || busy} className="min-w-36 px-4 py-2.5">
+          <Button type="button" variant="secondary" onClick={onBrowse} disabled={disabled || busy} className="min-w-36 px-4 py-2.5">
             {busy ? <Spinner /> : <><PlusIcon /> Add something</>}
           </Button>
           <span className="text-xs text-slate-500">Max 25 MB</span>
         </div>
 
-        {busy ? (
-          <div className="mt-4 w-full max-w-md space-y-2">
-            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-              <div className="h-full rounded-full bg-[linear-gradient(135deg,_#6366f1,_#8b5cf6)] transition-all" style={{ width: `${progress}%` }} />
-            </div>
-            <p className="text-xs text-slate-500">{progress}% uploaded</p>
+        {uploads.length > 0 ? (
+          <div className="mt-4 w-full max-w-md space-y-2 text-left">
+            {uploads.map((upload) => (
+              <div key={upload.id} className="rounded-2xl border border-slate-200/80 bg-white/75 px-3 py-2.5 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-slate-950">{upload.name}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">{Math.max(upload.size / 1024 / 1024, 0).toFixed(1)} MB</p>
+                  </div>
+                  <span
+                    className={clsx(
+                      'rounded-full px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]',
+                      upload.status === 'completed'
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : upload.status === 'failed'
+                          ? 'bg-rose-50 text-rose-700'
+                          : upload.status === 'cancelled'
+                            ? 'bg-slate-100 text-slate-500'
+                            : upload.status === 'uploading'
+                              ? 'bg-indigo-50 text-indigo-700'
+                              : 'bg-slate-100 text-slate-600'
+                    )}
+                  >
+                    {upload.status}
+                  </span>
+                </div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className={clsx(
+                      'h-full rounded-full transition-all',
+                      upload.status === 'failed'
+                        ? 'bg-rose-400'
+                        : upload.status === 'cancelled'
+                          ? 'bg-slate-300'
+                          : upload.status === 'completed'
+                            ? 'bg-emerald-500'
+                            : 'bg-[linear-gradient(135deg,_#6366f1,_#8b5cf6)]'
+                    )}
+                    style={{ width: `${Math.min(Math.max(upload.progress, 0), 100)}%` }}
+                  />
+                </div>
+                <div className="mt-1 flex items-center justify-between gap-3 text-xs text-slate-500">
+                  <span>{upload.message ?? (upload.status === 'completed' ? 'Uploaded' : upload.status === 'failed' ? 'Upload failed' : upload.status === 'cancelled' ? 'Cancelled' : 'Uploading')}</span>
+                  <div className="flex items-center gap-2">
+                    <span>{Math.round(upload.progress)}%</span>
+                    {upload.status === 'uploading' || upload.status === 'queued' ? (
+                      <button
+                        type="button"
+                        className="font-medium text-rose-600 hover:text-rose-700"
+                        onClick={() => onCancelUpload(upload.id)}
+                      >
+                        Cancel
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         ) : null}
         {status ? <p className="mt-4 text-sm text-slate-600">{status}</p> : null}
       </div>
-
-        <input
-          ref={inputRef}
-          className="hidden"
-          type="file"
-          onChange={async (event) => {
-            const file = event.target.files?.[0];
-            event.target.value = '';
-            if (file && !disabled && !busy) {
-              await onUpload(file);
-            }
-          }}
-        />
     </div>
   );
 };

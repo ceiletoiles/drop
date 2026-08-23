@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../../lib/supabase';
 import { AuthContext, type AuthContextValue } from './auth-context';
@@ -10,7 +10,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const lastLoggedSessionRef = useRef<string | null>(null);
   const pendingSignInKey = 'drop.pending_sign_in';
 
-  const delay = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
   const markPendingSignIn = () => {
     window.sessionStorage.setItem(pendingSignInKey, String(Date.now()));
   };
@@ -22,26 +21,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return true;
   };
 
-  const logActivity = async (payload: { token: string; action: 'sign_in' | 'sign_out'; retries?: number }) => {
-    try {
-      await apiFetch('/api/activity', {
-        method: 'POST',
-        token: payload.token,
-        body: JSON.stringify({ action: payload.action })
-      });
-    } catch {
-      if ((payload.retries ?? 0) <= 0) {
-        return;
-      }
+  const logActivity = useCallback(
+    async (payload: { token: string; action: 'sign_in' | 'sign_out'; retries?: number }) => {
+      const sleep = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
-      await delay(400);
-      await logActivity({
-        token: payload.token,
-        action: payload.action,
-        retries: (payload.retries ?? 0) - 1
-      });
-    }
-  };
+      const attempt = async (retries: number): Promise<void> => {
+        try {
+          await apiFetch('/api/activity', {
+            method: 'POST',
+            token: payload.token,
+            body: JSON.stringify({ action: payload.action })
+          });
+        } catch {
+          if (retries <= 0) {
+            return;
+          }
+
+          await sleep(400);
+          await attempt(retries - 1);
+        }
+      };
+
+      await attempt(payload.retries ?? 0);
+    },
+    []
+  );
 
   useEffect(() => {
     if (!supabase) {
@@ -83,7 +87,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     lastLoggedSessionRef.current = session.access_token;
     void logActivity({ token: session.access_token, action: 'sign_in', retries: 2 });
-  }, [session?.access_token, session?.user?.id]);
+  }, [session?.access_token, session?.user?.id, logActivity]);
 
   const value: AuthContextValue = {
     user: session?.user ?? null,

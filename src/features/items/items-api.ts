@@ -28,12 +28,25 @@ export const deleteItem = (token: string, itemId: string) =>
 export const uploadFile = (
   token: string,
   file: File,
-  onProgress: (percent: number) => void
+  onProgress: (percent: number) => void,
+  signal?: AbortSignal
 ): Promise<UploadResponse> =>
   new Promise<UploadResponse>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', apiUrl('/api/uploads'));
     xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+    if (signal?.aborted) {
+      reject(new Error('Upload cancelled.'));
+      return;
+    }
+
+    const handleAbort = () => xhr.abort();
+    signal?.addEventListener('abort', handleAbort, { once: true });
+
+    const cleanup = () => {
+      signal?.removeEventListener('abort', handleAbort);
+    };
 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable && event.total > 0) {
@@ -41,8 +54,16 @@ export const uploadFile = (
       }
     };
 
-    xhr.onerror = () => reject(new Error('Upload failed.'));
+    xhr.onerror = () => {
+      cleanup();
+      reject(new Error('Upload failed.'));
+    };
+    xhr.onabort = () => {
+      cleanup();
+      reject(new Error('Upload cancelled.'));
+    };
     xhr.onload = () => {
+      cleanup();
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve(JSON.parse(xhr.responseText) as UploadResponse);
         return;

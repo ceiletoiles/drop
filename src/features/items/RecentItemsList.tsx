@@ -57,6 +57,22 @@ export const RecentItemsList = ({
     return () => document.removeEventListener('pointerdown', handlePointerDown);
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMenuState(null);
+        setSortMenuOpen(false);
+      }
+    };
+
+    if (menuState || sortMenuOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+
+    return undefined;
+  }, [menuState, sortMenuOpen]);
+
   const closeMenuOnOutsideTap = (event: ReactPointerEvent<HTMLElement>) => {
     const target = event.target as HTMLElement | null;
     if (target?.closest('[data-menu-toggle], [data-menu-panel], [data-sort-toggle], [data-sort-panel]')) return;

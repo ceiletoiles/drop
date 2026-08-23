@@ -20,7 +20,7 @@ import { useAuth } from '../features/auth/auth-context';
 import { deleteItem, createTextItem, updateTextItem, uploadFile } from '../features/items/items-api';
 import { RecentItemsList } from '../features/items/RecentItemsList';
 import { TextEditorModal } from '../features/items/TextEditorModal';
-import { UploadDropzone } from '../features/items/UploadDropzone';
+import { UploadDropzone, type UploadItemState } from '../features/items/UploadDropzone';
 import { useItems } from '../features/items/useItems';
 import type { Item } from '../features/items/types';
 import { apiUrl } from '../lib/env';
@@ -66,6 +66,14 @@ const mobileQuickActionTextClass = 'min-w-0 flex-1 text-left';
 
 const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
+const isEditableTarget = (target: EventTarget | null) => {
+  const element = target as HTMLElement | null;
+  if (!element) return false;
+
+  const tagName = element.tagName.toLowerCase();
+  return tagName === 'input' || tagName === 'textarea' || element.isContentEditable || Boolean(element.closest('[contenteditable="true"]'));
+};
+
 export const DashboardPage = () => {
   const { session, user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
@@ -77,18 +85,23 @@ export const DashboardPage = () => {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
+  const [pendingTextDraft, setPendingTextDraft] = useState<{ title: string; content: string } | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
-  const [uploadBusy, setUploadBusy] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const [uploadItems, setUploadItems] = useState<UploadItemState[]>([]);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
+  const uploadControllersRef = useRef(new Map<string, AbortController>());
+  const clipboardPasteHandlerRef = useRef<(event: ClipboardEvent) => void>(() => undefined);
   const apiConfigured = !needsApiOverride();
   const { items, loading, error, refresh } = useItems(session?.access_token ?? null, query, apiConfigured);
 
   const token = session?.access_token ?? '';
+  const uploadBusy = uploadItems.some((item) => item.status === 'queued' || item.status === 'uploading');
+  const uploadStatus = uploadItems.length
+    ? `${uploadItems.filter((item) => item.status === 'uploading').length} uploading, ${uploadItems.filter((item) => item.status === 'queued').length} queued`
+    : null;
   const displayName = useMemo(() => {
     const raw = user?.user_metadata?.full_name ?? user?.user_metadata?.name ?? user?.email?.split('@')[0] ?? 'Shiv';
     const normalized = raw.trim() || 'Shiv';
@@ -116,6 +129,57 @@ export const DashboardPage = () => {
 
     document.addEventListener('pointerdown', handlePointerDown);
     return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (isEditableTarget(event.target)) return;
+
+      const key = event.key.toLowerCase();
+      if (key === 'escape') {
+        setEditorOpen(false);
+        setEditingItem(null);
+        setPendingTextDraft(null);
+        setDrawerOpen(false);
+        setMobileActionsOpen(false);
+        setAccountMenuOpen(false);
+        return;
+      }
+
+      if (key === 'u') {
+        event.preventDefault();
+        handleFileBrowse('', fileInputRef);
+        return;
+      }
+
+      if (key === 'n') {
+        event.preventDefault();
+        handleCreateText();
+        return;
+      }
+
+      if (event.key === '/') {
+        event.preventDefault();
+        setActiveFilter('search');
+        setMobileActionsOpen(false);
+        window.requestAnimationFrame(() => {
+          searchInputRef.current?.focus();
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    const handlePaste = (event: ClipboardEvent) => {
+      clipboardPasteHandlerRef.current(event);
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
   }, []);
 
   const filteredItems = useMemo(() => {
@@ -147,11 +211,13 @@ export const DashboardPage = () => {
 
   const handleCreateText = () => {
     setEditingItem(null);
+    setPendingTextDraft({ title: '', content: '' });
     setEditorOpen(true);
   };
 
   const handleEditText = (item: Item) => {
     setEditingItem(item);
+    setPendingTextDraft(null);
     setEditorOpen(true);
   };
 
@@ -166,6 +232,7 @@ export const DashboardPage = () => {
       showAction('Text item saved.');
     }
 
+    setPendingTextDraft(null);
     refresh();
   };
 
@@ -220,28 +287,79 @@ export const DashboardPage = () => {
     }
   };
 
-  const startUpload = async (file: File) => {
+  const addUploadItem = (file: File): string => {
+    const id = crypto.randomUUID();
+    uploadControllersRef.current.set(id, new AbortController());
+    setUploadItems((current) => [
+      ...current,
+      {
+        id,
+        name: file.name,
+        size: file.size,
+        progress: 0,
+        status: 'queued',
+        message: 'Queued'
+      }
+    ]);
+    return id;
+  };
+
+  const updateUploadItem = (id: string, updater: (item: UploadItemState) => UploadItemState) => {
+    setUploadItems((current) => current.map((item) => (item.id === id ? updater(item) : item)));
+  };
+
+  const removeUploadItem = (id: string, delay = 0) => {
+    window.setTimeout(() => {
+      uploadControllersRef.current.delete(id);
+      setUploadItems((current) => current.filter((item) => item.id !== id));
+    }, delay);
+  };
+
+  const cancelUpload = (uploadId: string) => {
+    const controller = uploadControllersRef.current.get(uploadId);
+    if (!controller) return;
+    controller.abort();
+  };
+
+  const startUpload = async (file: File, uploadId: string, signal?: AbortSignal) => {
     if (!token) throw new Error('Missing session.');
 
-    setUploadBusy(true);
-    setUploadProgress(0);
-    setUploadStatus(`${file.name} • ${formatFileSize(file.size)}`);
+    updateUploadItem(uploadId, (item) => ({
+      ...item,
+      status: 'uploading',
+      progress: 0,
+      message: `${formatFileSize(file.size)} uploading`
+    }));
 
     try {
-      await uploadFile(token, file, setUploadProgress);
+      await uploadFile(token, file, (progress) => {
+        updateUploadItem(uploadId, (item) => ({
+          ...item,
+          status: 'uploading',
+          progress,
+          message: `${progress}% uploaded`
+        }));
+      }, signal);
       refresh();
-      setUploadStatus('Upload complete');
+      updateUploadItem(uploadId, (item) => ({
+        ...item,
+        status: 'completed',
+        progress: 100,
+        message: 'Upload complete'
+      }));
       showAction('File uploaded.');
-      window.setTimeout(() => setUploadStatus(null), 2200);
+      removeUploadItem(uploadId, 2200);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Upload failed.';
-      setUploadStatus(message);
-      showAction(message);
-      window.setTimeout(() => setUploadStatus(null), 2200);
+      const cancelled = message === 'Upload cancelled.';
+      updateUploadItem(uploadId, (item) => ({
+        ...item,
+        status: cancelled ? 'cancelled' : 'failed',
+        message: cancelled ? 'Upload cancelled.' : message
+      }));
+      showAction(cancelled ? 'Upload cancelled.' : message);
+      removeUploadItem(uploadId, cancelled ? 1800 : 3500);
       throw error;
-    } finally {
-      setUploadBusy(false);
-      setUploadProgress(0);
     }
   };
 
@@ -252,36 +370,69 @@ export const DashboardPage = () => {
     input.click();
   };
 
-  const uploadSelectedFile = async (file: File) => {
+  const handleUploadFiles = async (files: File[]) => {
+    const selectedFiles = files.filter((file) => file.size > 0);
+    if (selectedFiles.length === 0) return;
+
+    const uploads = selectedFiles.map((file) => ({ file, uploadId: addUploadItem(file) }));
     try {
-      await startUpload(file);
+      await Promise.allSettled(
+        uploads.map(({ file, uploadId }) => startUpload(file, uploadId, uploadControllersRef.current.get(uploadId)?.signal))
+      );
     } catch (error) {
       void error;
     }
+  };
+
+  const openTextDraft = (content: string) => {
+    const normalized = content.replace(/\r\n/g, '\n');
+    const title = normalized.split('\n').find((line) => line.trim().length > 0)?.trim().slice(0, 60) || 'Clipboard note';
+    setEditingItem(null);
+    setPendingTextDraft({ title, content: normalized });
+    setEditorOpen(true);
   };
 
   const handlePasteClipboard = async () => {
     try {
       if (!token) return;
       const text = await navigator.clipboard.readText();
-      const content = text.trim();
-      if (!content) throw new Error('Clipboard is empty.');
-      const title = content.split('\n')[0]?.slice(0, 60) || 'Clipboard note';
-      await createTextItem(token, { title, content });
-      refresh();
-      showAction('Clipboard saved as a note.');
+      if (!text.trim()) throw new Error('Clipboard is empty.');
+      openTextDraft(text);
     } catch (error) {
       showAction(error instanceof Error ? error.message : 'Paste failed.');
     }
   };
 
-  const memberSince = user?.created_at
-    ? new Intl.DateTimeFormat('en-US', {
-        month: 'long',
-        day: '2-digit',
-        year: 'numeric'
-      }).format(new Date(user.created_at))
-    : 'Unknown';
+  async function handleClipboardPaste(event: ClipboardEvent) {
+    if (!token || isEditableTarget(event.target)) return;
+
+    const files = Array.from(event.clipboardData?.files ?? []);
+    const imageFiles = files.filter((file) => file.type.startsWith('image/'));
+    if (imageFiles.length > 0) {
+      await handleUploadFiles(imageFiles);
+      return;
+    }
+
+    const clipboardItems = Array.from(event.clipboardData?.items ?? []);
+    const pastedFiles = clipboardItems
+      .filter((item) => item.kind === 'file')
+      .map((item) => item.getAsFile())
+      .filter((file): file is File => Boolean(file));
+    if (pastedFiles.length > 0) {
+      await handleUploadFiles(pastedFiles);
+      return;
+    }
+
+    const text = event.clipboardData?.getData('text/plain') ?? '';
+    if (text.trim()) {
+      event.preventDefault();
+      openTextDraft(text);
+    }
+  }
+
+  clipboardPasteHandlerRef.current = (event: ClipboardEvent) => {
+    void handleClipboardPaste(event);
+  };
 
   const navAction = (key: ViewFilter | 'search' | 'account') => {
     if (key === 'search') {
@@ -427,10 +578,12 @@ export const DashboardPage = () => {
           <section className="space-y-4">
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)] xl:items-stretch">
               <UploadDropzone
-                onUpload={startUpload}
-                disabled={!token || uploadBusy}
+                onUpload={handleUploadFiles}
+                onBrowse={() => handleFileBrowse('', fileInputRef)}
+                onCancelUpload={cancelUpload}
+                disabled={!token}
                 busy={uploadBusy}
-                progress={uploadProgress}
+                uploads={uploadItems}
                 status={uploadStatus}
               />
 
@@ -628,7 +781,7 @@ export const DashboardPage = () => {
               className={mobileQuickActionButtonClass}
               onClick={() => {
                 setMobileActionsOpen(false);
-                handleCreateText();
+                void handlePasteClipboard();
               }}
               disabled={!token}
             >
@@ -679,7 +832,7 @@ export const DashboardPage = () => {
               className={mobileQuickActionButtonClass}
               onClick={() => {
                 setMobileActionsOpen(false);
-                void handlePasteClipboard();
+                handleCreateText();
               }}
               disabled={!token}
             >
@@ -690,9 +843,9 @@ export const DashboardPage = () => {
                 <span className="block text-[12px] font-medium leading-4 text-slate-950">Paste from clipboard</span>
               </span>
             </Button>
+            </div>
           </div>
         </div>
-      </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200/80 bg-white/95 px-3 py-2 shadow-[0_-10px_40px_rgba(15,23,42,0.08)] backdrop-blur xl:hidden">
         <div className="mx-auto grid max-w-xl grid-cols-5 items-end gap-2">
@@ -734,6 +887,8 @@ export const DashboardPage = () => {
         item={editingItem}
         onClose={() => setEditorOpen(false)}
         onSave={handleSaveText}
+        draftTitle={pendingTextDraft?.title}
+        draftContent={pendingTextDraft?.content}
         onDelete={async (itemId) => {
           try {
             if (!token) return;
@@ -753,11 +908,12 @@ export const DashboardPage = () => {
         ref={fileInputRef}
         className="hidden"
         type="file"
+        multiple
         onChange={async (event) => {
-          const file = event.target.files?.[0];
+          const files = Array.from(event.target.files ?? []);
           event.target.value = '';
-          if (file && token) {
-            await uploadSelectedFile(file);
+          if (files.length && token) {
+            await handleUploadFiles(files);
           }
         }}
       />
@@ -765,12 +921,13 @@ export const DashboardPage = () => {
         ref={imageInputRef}
         className="hidden"
         type="file"
+        multiple
         accept="image/*"
         onChange={async (event) => {
-          const file = event.target.files?.[0];
+          const files = Array.from(event.target.files ?? []);
           event.target.value = '';
-          if (file && token) {
-            await uploadSelectedFile(file);
+          if (files.length && token) {
+            await handleUploadFiles(files);
           }
         }}
       />

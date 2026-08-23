@@ -12,9 +12,19 @@ interface TextEditorModalProps {
   onClose: () => void;
   onSave: (payload: { title: string; content: string; id?: string }) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
+  draftTitle?: string;
+  draftContent?: string;
 }
 
-export const TextEditorModal = ({ open, item, onClose, onSave, onDelete }: TextEditorModalProps) => {
+export const TextEditorModal = ({
+  open,
+  item,
+  onClose,
+  onSave,
+  onDelete,
+  draftTitle = '',
+  draftContent = ''
+}: TextEditorModalProps) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
@@ -22,11 +32,11 @@ export const TextEditorModal = ({ open, item, onClose, onSave, onDelete }: TextE
 
   useEffect(() => {
     if (open) {
-      setTitle(item?.title ?? '');
-      setContent(item?.text?.content ?? '');
+      setTitle(item?.title ?? draftTitle);
+      setContent(item?.text?.content ?? draftContent);
       setError(null);
     }
-  }, [item, open]);
+  }, [draftContent, draftTitle, item, open]);
 
   const save = async () => {
     setLoading(true);

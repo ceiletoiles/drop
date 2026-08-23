@@ -14,6 +14,12 @@ export const useItems = (token: string | null, query: string, enabled = true): U
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQuery(query), 200);
+    return () => window.clearTimeout(timer);
+  }, [query]);
 
   useEffect(() => {
     if (!token || !enabled) {
@@ -26,7 +32,7 @@ export const useItems = (token: string | null, query: string, enabled = true): U
     setLoading(true);
     setError(null);
 
-    fetchItems(token, query)
+    fetchItems(token, debouncedQuery)
       .then((response) => {
         if (!controller.signal.aborted) {
           setItems(response.items);
@@ -43,7 +49,7 @@ export const useItems = (token: string | null, query: string, enabled = true): U
     return () => {
       controller.abort();
     };
-  }, [enabled, query, reloadToken, token]);
+  }, [debouncedQuery, enabled, reloadToken, token]);
 
   return {
     items,
