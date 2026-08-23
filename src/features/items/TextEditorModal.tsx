@@ -5,6 +5,9 @@ import { Input } from '../../components/ui/Input';
 import { Textarea } from '../../components/ui/Textarea';
 import type { Item } from './types';
 import { Spinner } from '../../components/ui/Spinner';
+import { getExpirationSummary } from '../../lib/expiration';
+import type { ExpirationType } from '../../../shared/types';
+import { ExpirationSelector } from './ExpirationSelector';
 
 interface TextEditorModalProps {
   open: boolean;
@@ -14,6 +17,8 @@ interface TextEditorModalProps {
   onDelete?: (id: string) => Promise<void>;
   draftTitle?: string;
   draftContent?: string;
+  expirationType: ExpirationType;
+  onExpirationTypeChange: (value: ExpirationType) => void;
 }
 
 export const TextEditorModal = ({
@@ -23,7 +28,9 @@ export const TextEditorModal = ({
   onSave,
   onDelete,
   draftTitle = '',
-  draftContent = ''
+  draftContent = '',
+  expirationType,
+  onExpirationTypeChange
 }: TextEditorModalProps) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -89,6 +96,14 @@ export const TextEditorModal = ({
             autoFocus
           />
         </label>
+        {item ? (
+          <div className="rounded-2xl border border-slate-200/80 bg-white/70 px-4 py-3 text-sm text-slate-600 shadow-sm">
+            <p className="font-medium text-slate-900">Expiration</p>
+            <p className="mt-1">{getExpirationSummary(item.expirationType, item.expiresAt, item.type)}</p>
+          </div>
+        ) : (
+          <ExpirationSelector itemType="text" value={expirationType} onChange={onExpirationTypeChange} />
+        )}
         {error ? <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p> : null}
       </div>
     </Modal>

@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { textItemSchema, updateTextItemSchema } from '../../../shared/schemas';
-import { MAX_UPLOAD_BYTES } from '../../../shared/constants';
-import type { FileMetadata, ItemSummary, ItemType } from '../../../shared/types';
+import { createTextItemSchema, expirationTypeSchema, updateTextItemSchema } from '../../../shared/schemas';
+import { DEFAULT_EXPIRATION_TYPE, MAX_UPLOAD_BYTES } from '../../../shared/constants';
+import type { ExpirationType, FileMetadata, ItemSummary, ItemType } from '../../../shared/types';
 import { sanitizeFilename } from '../../../shared/utils';
 import type { Env } from '../types';
 import { deleteFile, getFile, putFile } from './storage';
@@ -14,6 +14,8 @@ interface ItemRow {
   title: string;
   created_at: string;
   updated_at: string;
+  expiration_type: ExpirationType;
+  expires_at: string | null;
 }
 
 interface FileRow {
@@ -28,6 +30,14 @@ interface TextRow {
   item_id: string;
   content: string;
 }
+
+interface StorageDeletionRow {
+  id: string;
+  storage_key: string;
+  attempts: number;
+}
+
+const selectItemColumns = 'id,user_id,type,title,created_at,updated_at,expiration_type,expires_at';
 
 const createDb = (env: Env): SupabaseClient =>
   createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -47,6 +57,8 @@ const mapItem = (item: ItemRow, fileRow?: FileRow, textRow?: TextRow): ItemSumma
   id: item.id,
   type: item.type,
   title: item.title,
+  expirationType: item.expiration_type,
+  expiresAt: item.expires_at,
   createdAt: item.created_at,
   updatedAt: item.updated_at,
   file: fileRow ? toFileMetadata(fileRow) : undefined,
@@ -54,6 +66,7 @@ const mapItem = (item: ItemRow, fileRow?: FileRow, textRow?: TextRow): ItemSumma
 });
 
 const getTextSizeBytes = (value: string) => new TextEncoder().encode(value).length;
+
 const getFileExtension = (filename?: string | null) => {
   if (!filename) return '';
   const normalized = filename.trim().toLowerCase();
@@ -78,16 +91,21 @@ const getActivityFileEntity = (filename?: string | null, mimeType?: string | nul
 
 const logActivity = (env: Env, payload: Parameters<typeof recordActivity>[1]) => recordActivity(env, payload).catch(() => undefined);
 
+const isExpired = (item: Pick<ItemRow, 'expires_at'>, nowIso = new Date().toISOString()) =>
+  Boolean(item.expires_at && item.expires_at <= nowIso);
+
+const isActiveItem = (item: ItemRow) => !isExpired(item);
+
 const getItemRows = async (db: SupabaseClient, userId: string) => {
   const { data: items, error: itemsError } = await db
     .from('items')
-    .select('id,user_id,type,title,created_at,updated_at')
+    .select(selectItemColumns)
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
   if (itemsError) throw itemsError;
 
-  const itemIds = (items ?? []).map((item) => item.id);
+  const itemIds = (items ?? []).filter((item) => isActiveItem(item as ItemRow)).map((item) => item.id);
   if (itemIds.length === 0) {
     return { items: [] as ItemRow[], files: [] as FileRow[], textItems: [] as TextRow[] };
   }
@@ -101,10 +119,95 @@ const getItemRows = async (db: SupabaseClient, userId: string) => {
   if (textError) throw textError;
 
   return {
-    items: items ?? [],
+    items: (items ?? []).filter((item) => isActiveItem(item as ItemRow)) as ItemRow[],
     files: fileRows ?? [],
     textItems: textRows ?? []
   };
+};
+
+const getItemWithRelations = async (db: SupabaseClient, userId: string, itemId: string) => {
+  const { data: item, error: itemError } = await db.from('items').select(selectItemColumns).eq('id', itemId).eq('user_id', userId).single();
+  if (itemError || !item) throw itemError ?? new Error('Not found.');
+  if (!isActiveItem(item as ItemRow)) throw new Error('Not found.');
+
+  const typedItem = item as ItemRow;
+  let fileRow: FileRow | undefined;
+  let textRow: TextRow | undefined;
+  let fileError: unknown = null;
+  let textError: unknown = null;
+
+  if (typedItem.type === 'file') {
+    const result = await db.from('files').select('item_id,storage_key,original_name,mime_type,size').eq('item_id', itemId).single();
+    fileRow = result.data ?? undefined;
+    fileError = result.error;
+  } else {
+    const result = await db.from('text_items').select('item_id,content').eq('item_id', itemId).single();
+    textRow = result.data ?? undefined;
+    textError = result.error;
+  }
+
+  if (fileError || (typedItem.type === 'file' && !fileRow)) throw fileError ?? new Error('File metadata missing.');
+  if (textError || (typedItem.type === 'text' && !textRow)) throw textError ?? new Error('Text metadata missing.');
+
+  return {
+    item: typedItem,
+    fileRow,
+    textRow
+  };
+};
+
+const queueFileDeletion = async (
+  db: SupabaseClient,
+  payload: {
+    storageKey: string;
+    itemId: string;
+    userId: string;
+    reason: 'consume' | 'expired' | 'delete';
+  }
+) => {
+  const { error } = await db.from('storage_deletion_queue').upsert(
+    {
+      storage_key: payload.storageKey,
+      item_id: payload.itemId,
+      user_id: payload.userId,
+      reason: payload.reason,
+      attempts: 0,
+      last_error: null,
+      next_attempt_at: new Date().toISOString()
+    },
+    { onConflict: 'storage_key' }
+  );
+
+  if (error) throw error;
+};
+
+const clearQueuedFileDeletion = async (db: SupabaseClient, storageKey: string) => {
+  const { error } = await db.from('storage_deletion_queue').delete().eq('storage_key', storageKey);
+  if (error) throw error;
+};
+
+const recordQueuedDeletionFailure = async (db: SupabaseClient, row: StorageDeletionRow, error: unknown) => {
+  const message = error instanceof Error ? error.message : 'Storage deletion failed.';
+  const nextAttemptAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+  const { error: updateError } = await db
+    .from('storage_deletion_queue')
+    .update({
+      attempts: row.attempts + 1,
+      last_error: message,
+      next_attempt_at: nextAttemptAt
+    })
+    .eq('id', row.id);
+
+  if (updateError) throw updateError;
+};
+
+const tryDeleteQueuedFile = async (env: Env, db: SupabaseClient, row: StorageDeletionRow) => {
+  try {
+    await deleteFile(env, row.storage_key);
+    await clearQueuedFileDeletion(db, row.storage_key);
+  } catch (error) {
+    await recordQueuedDeletionFailure(db, row, error);
+  }
 };
 
 export const listItems = async (env: Env, userId: string, query: string) => {
@@ -129,8 +232,12 @@ export const listItems = async (env: Env, userId: string, query: string) => {
     });
 };
 
-export const createText = async (env: Env, userId: string, payload: { title: string; content: string }) => {
-  const parsed = textItemSchema.parse(payload);
+export const createText = async (
+  env: Env,
+  userId: string,
+  payload: { title: string; content: string; expirationType: ExpirationType }
+) => {
+  const parsed = createTextItemSchema.parse(payload);
   const db = createDb(env);
 
   const { data: item, error: itemError } = await db
@@ -138,9 +245,10 @@ export const createText = async (env: Env, userId: string, payload: { title: str
     .insert({
       user_id: userId,
       type: 'text',
-      title: parsed.title
+      title: parsed.title,
+      expiration_type: parsed.expirationType
     })
-    .select('id,user_id,type,title,created_at,updated_at')
+    .select(selectItemColumns)
     .single();
 
   if (itemError || !item) throw itemError ?? new Error('Failed to create item.');
@@ -172,15 +280,11 @@ export const updateText = async (env: Env, userId: string, itemId: string, paylo
   const parsed = updateTextItemSchema.parse(payload);
   const db = createDb(env);
 
-  const { data: existing, error: existingError } = await db
-    .from('items')
-    .select('id,user_id,type,title,created_at,updated_at')
-    .eq('id', itemId)
-    .eq('user_id', userId)
-    .single();
+  const { data: existing, error: existingError } = await db.from('items').select(selectItemColumns).eq('id', itemId).eq('user_id', userId).single();
 
   if (existingError || !existing) throw existingError ?? new Error('Not found.');
-  if (existing.type !== 'text') throw new Error('Only text items can be edited.');
+  if (!isActiveItem(existing as ItemRow)) throw new Error('Not found.');
+  if ((existing as ItemRow).type !== 'text') throw new Error('Only text items can be edited.');
 
   const updatePayload: Record<string, string> = {};
   if (parsed.title) updatePayload.title = parsed.title;
@@ -195,13 +299,7 @@ export const updateText = async (env: Env, userId: string, itemId: string, paylo
     if (error) throw error;
   }
 
-  const { data: refreshed } = await db
-    .from('items')
-    .select('id,user_id,type,title,created_at,updated_at')
-    .eq('id', itemId)
-    .eq('user_id', userId)
-    .single();
-
+  const { data: refreshed } = await db.from('items').select(selectItemColumns).eq('id', itemId).eq('user_id', userId).single();
   const { data: textRow } = await db.from('text_items').select('item_id,content').eq('item_id', itemId).single();
 
   await logActivity(env, {
@@ -217,89 +315,139 @@ export const updateText = async (env: Env, userId: string, itemId: string, paylo
   return mapItem(refreshed as ItemRow, undefined, textRow ?? undefined);
 };
 
-export const deleteItem = async (env: Env, userId: string, itemId: string) => {
+export const updateExpiration = async (env: Env, userId: string, itemId: string, payload: { expirationType: ExpirationType }) => {
+  const parsed = expirationTypeSchema.parse(payload.expirationType);
   const db = createDb(env);
-  const { data: item, error: itemError } = await db
+
+  const { data: existing, error: existingError } = await db.from('items').select(selectItemColumns).eq('id', itemId).eq('user_id', userId).single();
+  if (existingError || !existing) throw existingError ?? new Error('Not found.');
+  if (!isActiveItem(existing as ItemRow)) throw new Error('Not found.');
+
+  const { error: updateError } = await db
     .from('items')
-    .select('id,user_id,type,title,created_at,updated_at')
+    .update({ expiration_type: parsed })
     .eq('id', itemId)
-    .eq('user_id', userId)
-    .single();
+    .eq('user_id', userId);
 
-  if (itemError || !item) throw itemError ?? new Error('Not found.');
+  if (updateError) throw updateError;
 
-  let activityPayload:
-    | {
-        userId: string;
-        action: 'delete';
-        title: string;
-        itemId: string;
-        itemType: 'file' | 'text';
-        entityKind?: 'note' | 'file' | 'image' | null;
-        entityDetail?: string | null;
-        sizeBytes: number | null;
-      }
-    | null = null;
+  const { data: refreshed, error: refreshedError } = await db.from('items').select(selectItemColumns).eq('id', itemId).eq('user_id', userId).single();
+  if (refreshedError || !refreshed) throw refreshedError ?? new Error('Not found.');
 
-  if (item.type === 'file') {
-    const { data: fileRow, error: fileError } = await db
-      .from('files')
-      .select('item_id,storage_key,original_name,mime_type,size')
-      .eq('item_id', itemId)
-      .single();
-    if (fileError || !fileRow) throw fileError ?? new Error('File metadata missing.');
-    activityPayload = {
-      userId,
-      action: 'delete',
-      title: item.title,
-      itemId,
-      itemType: 'file',
-      ...getActivityFileEntity(fileRow.original_name, fileRow.mime_type),
-      sizeBytes: fileRow.size
-    };
-    await deleteFile(env, fileRow.storage_key);
-  } else {
-    const { data: textRow, error: textError } = await db
-      .from('text_items')
-      .select('item_id,content')
-      .eq('item_id', itemId)
-      .single();
-    if (textError) throw textError;
-    activityPayload = {
-      userId,
-      action: 'delete',
-      title: item.title,
-      itemId,
-      itemType: 'text',
-      entityKind: 'note',
-      sizeBytes: textRow?.content ? getTextSizeBytes(textRow.content) : null
-    };
-  }
+  const { data: fileRow } =
+    (refreshed as ItemRow).type === 'file'
+      ? await db.from('files').select('item_id,storage_key,original_name,mime_type,size').eq('item_id', itemId).single()
+      : { data: null };
+  const { data: textRow } =
+    (refreshed as ItemRow).type === 'text'
+      ? await db.from('text_items').select('item_id,content').eq('item_id', itemId).single()
+      : { data: null };
 
-  if (activityPayload) {
-    await logActivity(env, activityPayload);
-  }
+  await logActivity(env, {
+    userId,
+    action: 'edit',
+    title: (refreshed as ItemRow).title,
+    itemId,
+    itemType: (refreshed as ItemRow).type,
+    ...(fileRow && (refreshed as ItemRow).type === 'file'
+      ? { ...getActivityFileEntity(fileRow.original_name, fileRow.mime_type), sizeBytes: fileRow.size }
+      : { entityKind: 'note', sizeBytes: textRow?.content ? getTextSizeBytes(textRow.content) : null })
+  });
 
-  const { error: deleteError } = await db.from('text_items').delete().eq('item_id', itemId);
-  if (deleteError) throw deleteError;
-
-  const { error: fileDeleteError } = await db.from('files').delete().eq('item_id', itemId);
-  if (fileDeleteError) throw fileDeleteError;
-
-  const { error: itemDeleteError } = await db.from('items').delete().eq('id', itemId).eq('user_id', userId);
-  if (itemDeleteError) throw itemDeleteError;
+  return mapItem(refreshed as ItemRow, fileRow ?? undefined, textRow ?? undefined);
 };
 
-export const uploadItem = async (
-  env: Env,
-  userId: string,
-  file: File,
-  title?: string
-) => {
+export const deleteItem = async (env: Env, userId: string, itemId: string) => {
+  const db = createDb(env);
+  const { item, fileRow, textRow } = await getItemWithRelations(db, userId, itemId);
+
+  if (item.type === 'file' && fileRow) {
+    await queueFileDeletion(db, {
+      storageKey: fileRow.storage_key,
+      itemId: item.id,
+      userId,
+      reason: 'delete'
+    });
+  }
+
+  const { error: deleteError } = await db.from('items').delete().eq('id', item.id).eq('user_id', userId);
+  if (deleteError) throw deleteError;
+
+  if (item.type === 'file' && fileRow) {
+    const { data: queuedRows, error: queueError } = await db
+      .from('storage_deletion_queue')
+      .select('id,storage_key,attempts')
+      .eq('storage_key', fileRow.storage_key)
+      .limit(1);
+
+    if (queueError) throw queueError;
+    if (queuedRows?.[0]) {
+      await tryDeleteQueuedFile(env, db, queuedRows[0] as StorageDeletionRow);
+    }
+  }
+
+  const sizeBytes = item.type === 'file' && fileRow ? fileRow.size : textRow?.content ? getTextSizeBytes(textRow.content) : null;
+  await logActivity(env, {
+    userId,
+    action: 'delete',
+    title: item.title,
+    itemId,
+    itemType: item.type,
+    ...(item.type === 'file' && fileRow
+      ? { ...getActivityFileEntity(fileRow.original_name, fileRow.mime_type), sizeBytes }
+      : { entityKind: 'note', sizeBytes })
+  });
+};
+
+export const consumeItem = async (env: Env, userId: string, itemId: string) => {
+  const db = createDb(env);
+  const { item, fileRow, textRow } = await getItemWithRelations(db, userId, itemId);
+  if (item.expiration_type !== 'CONSUME') throw new Error('Item is not configured for consume deletion.');
+
+  if (item.type === 'file' && fileRow) {
+    await queueFileDeletion(db, {
+      storageKey: fileRow.storage_key,
+      itemId: item.id,
+      userId,
+      reason: 'consume'
+    });
+  }
+
+  const { error: deleteError } = await db.from('items').delete().eq('id', item.id).eq('user_id', userId);
+  if (deleteError) throw deleteError;
+
+  if (item.type === 'file' && fileRow) {
+    const { data: queuedRows, error: queueError } = await db
+      .from('storage_deletion_queue')
+      .select('id,storage_key,attempts')
+      .eq('storage_key', fileRow.storage_key)
+      .limit(1);
+
+    if (queueError) throw queueError;
+    if (queuedRows?.[0]) {
+      await tryDeleteQueuedFile(env, db, queuedRows[0] as StorageDeletionRow);
+    }
+  }
+
+  const sizeBytes = item.type === 'file' && fileRow ? fileRow.size : textRow?.content ? getTextSizeBytes(textRow.content) : null;
+  await logActivity(env, {
+    userId,
+    action: 'delete',
+    title: item.title,
+    itemId,
+    itemType: item.type,
+    ...(item.type === 'file' && fileRow
+      ? { ...getActivityFileEntity(fileRow.original_name, fileRow.mime_type), sizeBytes }
+      : { entityKind: 'note', sizeBytes })
+  });
+};
+
+export const uploadItem = async (env: Env, userId: string, file: File, title?: string, expirationType?: string) => {
   if (file.size > MAX_UPLOAD_BYTES) {
     throw new Error('File is too large.');
   }
 
+  const parsedExpiration = expirationTypeSchema.parse(expirationType ?? DEFAULT_EXPIRATION_TYPE);
   const db = createDb(env);
   const safeName = sanitizeFilename(file.name || 'upload');
   const storageKey = `${userId}/${crypto.randomUUID()}-${safeName}`;
@@ -312,9 +460,10 @@ export const uploadItem = async (
       .insert({
         user_id: userId,
         type: 'file',
-        title: title?.trim() || safeName
+        title: title?.trim() || safeName,
+        expiration_type: parsedExpiration
       })
-      .select('id,user_id,type,title,created_at,updated_at')
+      .select(selectItemColumns)
       .single();
 
     if (itemError || !item) throw itemError ?? new Error('Failed to create file item.');
@@ -358,22 +507,8 @@ export const uploadItem = async (
 
 export const downloadItemFile = async (env: Env, userId: string, itemId: string) => {
   const db = createDb(env);
-  const { data: item, error: itemError } = await db
-    .from('items')
-    .select('id,user_id,type,title,created_at,updated_at')
-    .eq('id', itemId)
-    .eq('user_id', userId)
-    .single();
-
-  if (itemError || !item || item.type !== 'file') throw itemError ?? new Error('Not found.');
-
-  const { data: fileRow, error: fileError } = await db
-    .from('files')
-    .select('item_id,storage_key,original_name,mime_type,size')
-    .eq('item_id', itemId)
-    .single();
-
-  if (fileError || !fileRow) throw fileError ?? new Error('File metadata missing.');
+  const { item, fileRow } = await getItemWithRelations(db, userId, itemId);
+  if (item.type !== 'file' || !fileRow) throw new Error('Not found.');
 
   const object = await getFile(env, fileRow.storage_key);
   if (!object) throw new Error('File missing from storage.');
@@ -382,4 +517,77 @@ export const downloadItemFile = async (env: Env, userId: string, itemId: string)
     object,
     fileRow
   };
+};
+
+const processExpiredFileItems = async (env: Env) => {
+  const db = createDb(env);
+  const nowIso = new Date().toISOString();
+  const { data: expiredRows, error } = await db
+    .from('items')
+    .select(selectItemColumns)
+    .lt('expires_at', nowIso)
+    .order('expires_at', { ascending: true })
+    .limit(50);
+
+  if (error) throw error;
+
+  for (const rawItem of expiredRows ?? []) {
+    const item = rawItem as ItemRow;
+    try {
+      const { data: fileRow, error: fileError } =
+        item.type === 'file'
+          ? await db.from('files').select('item_id,storage_key,original_name,mime_type,size').eq('item_id', item.id).single()
+          : { data: null, error: null };
+
+      if (fileError) throw fileError;
+
+      if (item.type === 'file' && fileRow) {
+        await queueFileDeletion(db, {
+          storageKey: fileRow.storage_key,
+          itemId: item.id,
+          userId: item.user_id,
+          reason: 'expired'
+        });
+      }
+
+      const { error: deleteError } = await db.from('items').delete().eq('id', item.id).eq('user_id', item.user_id);
+      if (deleteError) throw deleteError;
+
+      if (item.type === 'file' && fileRow) {
+        const { data: queuedRows, error: queueError } = await db
+          .from('storage_deletion_queue')
+          .select('id,storage_key,attempts')
+          .eq('storage_key', fileRow.storage_key)
+          .limit(1);
+
+        if (queueError) throw queueError;
+        if (queuedRows?.[0]) {
+          await tryDeleteQueuedFile(env, db, queuedRows[0] as StorageDeletionRow);
+        }
+      }
+    } catch {
+      continue;
+    }
+  }
+};
+
+const processStorageDeletionQueue = async (env: Env) => {
+  const db = createDb(env);
+  const { data: queuedRows, error } = await db
+    .from('storage_deletion_queue')
+    .select('id,storage_key,attempts')
+    .lte('next_attempt_at', new Date().toISOString())
+    .order('created_at', { ascending: true })
+    .limit(25);
+
+  if (error) throw error;
+
+  for (const row of (queuedRows ?? []) as StorageDeletionRow[]) {
+    await tryDeleteQueuedFile(env, db, row);
+  }
+};
+
+export const runScheduledCleanup = async (env: Env) => {
+  await processExpiredFileItems(env);
+  await processStorageDeletionQueue(env);
 };

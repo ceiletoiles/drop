@@ -3,11 +3,12 @@ import type { Item } from './types';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Spinner } from '../../components/ui/Spinner';
-import { CopyIcon, DownloadIcon, ListIcon, MoreHorizontalIcon, SearchIcon, SortIcon, TextIcon, TrashIcon } from '../../components/ui/Icon';
+import { CopyIcon, DownloadIcon, ListIcon, MoreHorizontalIcon, PencilIcon, SearchIcon, SortIcon, TextIcon, TrashIcon } from '../../components/ui/Icon';
 import { FileTypeIcon } from '../../components/ui/FileTypeIcon';
 import { formatFileSize, formatRelativeTime } from '../../lib/format';
 import { getFileTypeLabel } from '../../lib/file';
 import { clsx } from 'clsx';
+import { getExpirationSummary } from '../../lib/expiration';
 
 interface RecentItemsListProps {
   items: Item[];
@@ -24,6 +25,7 @@ interface RecentItemsListProps {
   onCopyText: (item: Item) => Promise<void>;
   onDelete: (item: Item) => Promise<void>;
   onDownload: (item: Item) => Promise<void>;
+  onChangeExpiration: (item: Item) => void;
 }
 
 export const RecentItemsList = ({
@@ -40,7 +42,8 @@ export const RecentItemsList = ({
   onEditText,
   onCopyText,
   onDelete,
-  onDownload
+  onDownload,
+  onChangeExpiration
 }: RecentItemsListProps) => {
   const [menuState, setMenuState] = useState<{ itemId: string; top: number; left: number } | null>(null);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
@@ -83,7 +86,7 @@ export const RecentItemsList = ({
   const toggleMenu = (event: ReactMouseEvent<HTMLButtonElement>, item: Item) => {
     const anchor = event.currentTarget.getBoundingClientRect();
     const menuWidth = 180;
-    const menuHeight = item.type === 'text' ? 96 : 56;
+    const menuHeight = item.type === 'text' ? 136 : 96;
     const viewportPadding = 8;
     const left = Math.min(Math.max(anchor.right - menuWidth, viewportPadding), window.innerWidth - menuWidth - viewportPadding);
     const belowTop = anchor.bottom + viewportPadding;
@@ -262,14 +265,18 @@ export const RecentItemsList = ({
                     />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-slate-950">{item.title}</p>
-                      <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
-                        <span className="text-[11px] font-medium leading-none text-indigo-600">
+                      <p className="mt-1 flex min-w-0 flex-nowrap items-center gap-1.5 overflow-hidden whitespace-nowrap text-[10px] leading-none text-slate-500 sm:flex-wrap sm:gap-x-2 sm:gap-y-1 sm:text-xs">
+                        <span className="shrink-0 text-[10px] font-medium leading-none text-indigo-600 sm:text-[11px]">
                           {getFileTypeLabel({ itemType: item.type, filename: item.file?.originalName, mimeType: item.file?.mimeType })}
                         </span>
-                        <span className="h-1 w-1 shrink-0 rounded-full bg-slate-300" aria-hidden="true" />
-                        {item.type === 'file' && item.file ? <span>{formatFileSize(item.file.size)}</span> : null}
-                        {item.type === 'file' && item.file ? <span className="h-1 w-1 shrink-0 rounded-full bg-slate-300" aria-hidden="true" /> : null}
-                        <span>{formatRelativeTime(item.createdAt)}</span>
+                        <span className="hidden h-1 w-1 shrink-0 rounded-full bg-slate-300 sm:inline-block" aria-hidden="true" />
+                        {item.type === 'file' && item.file ? <span className="shrink-0">{formatFileSize(item.file.size)}</span> : null}
+                        {item.type === 'file' && item.file ? <span className="hidden h-1 w-1 shrink-0 rounded-full bg-slate-300 sm:inline-block" aria-hidden="true" /> : null}
+                        <span className="shrink-0">{formatRelativeTime(item.createdAt)}</span>
+                        <span className="flex shrink-0 items-center gap-1 text-slate-500">
+                          <TrashIcon className="h-3 w-3" />
+                          <span className="shrink-0">{getExpirationSummary(item.expirationType, item.expiresAt, item.type)}</span>
+                        </span>
                       </p>
                     </div>
                   </button>
@@ -332,6 +339,17 @@ export const RecentItemsList = ({
                               </button>
                               <button
                                 type="button"
+                                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left hover:bg-slate-100"
+                                onClick={() => {
+                                  setMenuState(null);
+                                  onChangeExpiration(item);
+                                }}
+                              >
+                                <PencilIcon className="h-5 w-5" />
+                                Change expiration
+                              </button>
+                              <button
+                                type="button"
                                 className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-rose-600 hover:bg-rose-50"
                                 onClick={() => {
                                   setMenuState(null);
@@ -343,17 +361,30 @@ export const RecentItemsList = ({
                               </button>
                             </>
                           ) : (
-                            <button
-                              type="button"
-                              className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-rose-600 hover:bg-rose-50"
-                              onClick={() => {
-                                setMenuState(null);
-                                void onDelete(item);
-                              }}
-                            >
-                              <TrashIcon className="h-5 w-5" />
-                              Delete
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left hover:bg-slate-100"
+                                onClick={() => {
+                                  setMenuState(null);
+                                  onChangeExpiration(item);
+                                }}
+                              >
+                                <PencilIcon className="h-5 w-5" />
+                                Change expiration
+                              </button>
+                              <button
+                                type="button"
+                                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-rose-600 hover:bg-rose-50"
+                                onClick={() => {
+                                  setMenuState(null);
+                                  void onDelete(item);
+                                }}
+                              >
+                                <TrashIcon className="h-5 w-5" />
+                                Delete
+                              </button>
+                            </>
                           )}
                         </div>
                       ) : null}

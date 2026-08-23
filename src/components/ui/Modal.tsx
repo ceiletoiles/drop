@@ -13,9 +13,13 @@ export const Modal = ({ title, open, onClose, footer, children }: PropsWithChild
   if (!open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/55 p-4 sm:items-center" onClick={onClose} role="presentation">
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/55 p-4 sm:items-center"
+      onClick={onClose}
+      role="presentation"
+    >
       <div
-        className="w-full max-w-2xl overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-glow"
+        className="flex w-full max-w-2xl flex-col overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-glow max-h-[calc(100dvh-2rem)]"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -29,7 +33,7 @@ export const Modal = ({ title, open, onClose, footer, children }: PropsWithChild
             Close
           </Button>
         </div>
-        <div className="max-h-[80vh] overflow-auto p-5">{children}</div>
+        <div className="flex-1 overflow-y-auto p-5">{children}</div>
         {footer ? <div className="border-t border-slate-100 px-5 py-4">{footer}</div> : null}
       </div>
     </div>,

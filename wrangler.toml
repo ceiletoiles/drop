@@ -6,3 +6,6 @@ minify = true
 [[r2_buckets]]
 binding = "R2_BUCKET"
 bucket_name = "drop-files"
+
+[triggers]
+crons = ["*/15 * * * *"]

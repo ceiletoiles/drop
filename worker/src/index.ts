@@ -1,8 +1,9 @@
 import type { Env } from './types';
 import { getAuthenticatedUser } from './lib/auth';
 import { corsResponse, errorResponse, withCors } from './lib/response';
-import { createText, deleteItem, downloadItemFile, listItems, updateText, uploadItem } from './lib/items';
+import { createText, consumeItem, deleteItem, downloadItemFile, listItems, runScheduledCleanup, updateExpiration, updateText, uploadItem } from './lib/items';
 import { listActivities, recordActivity } from './lib/activity';
+import { expirationTypeSchema } from '../../shared/schemas';
 import { MAX_SEARCH_CHARS } from '../../shared/constants';
 
 const readBody = async (request: Request) => {
@@ -49,9 +50,14 @@ const handleItems = async (request: Request, env: Env, userId: string) => {
 
   if (method === 'POST' && url.pathname === '/api/items/text') {
     const body = await readBody(request);
+    const expirationType =
+      body.expirationType === undefined
+        ? '24_HOURS'
+        : expirationTypeSchema.parse(body.expirationType);
     const item = await createText(env, userId, {
       title: typeof body.title === 'string' ? body.title : '',
-      content: typeof body.content === 'string' ? body.content : ''
+      content: typeof body.content === 'string' ? body.content : '',
+      expirationType
     });
     return corsResponse(request, { item }, { status: 201 });
   }
@@ -67,10 +73,28 @@ const handleItems = async (request: Request, env: Env, userId: string) => {
     return corsResponse(request, { item });
   }
 
+  if (method === 'PATCH' && url.pathname.startsWith('/api/items/') && url.pathname.endsWith('/expiration')) {
+    const segments = url.pathname.split('/');
+    const itemId = segments[3];
+    if (!itemId) return errorResponse(400, 'Invalid item id.');
+    const body = await readBody(request);
+    const expirationType = expirationTypeSchema.parse(body.expirationType);
+    const item = await updateExpiration(env, userId, itemId, { expirationType });
+    return corsResponse(request, { item });
+  }
+
   if (method === 'DELETE' && url.pathname.startsWith('/api/items/')) {
     const itemId = url.pathname.split('/').at(-1);
     if (!itemId) return errorResponse(400, 'Invalid item id.');
     await deleteItem(env, userId, itemId);
+    return corsResponse(request, { ok: true });
+  }
+
+  if (method === 'POST' && url.pathname.startsWith('/api/items/') && url.pathname.endsWith('/consume')) {
+    const segments = url.pathname.split('/');
+    const itemId = segments[3];
+    if (!itemId) return errorResponse(400, 'Invalid item id.');
+    await consumeItem(env, userId, itemId);
     return corsResponse(request, { ok: true });
   }
 
@@ -92,8 +116,15 @@ const handleItems = async (request: Request, env: Env, userId: string) => {
     const formData = await request.formData();
     const file = formData.get('file');
     const title = formData.get('title');
+    const expirationType = formData.get('expirationType');
     if (!(file instanceof File)) return errorResponse(400, 'Missing file upload.');
-    const item = await uploadItem(env, userId, file, typeof title === 'string' ? title : undefined);
+    const item = await uploadItem(
+      env,
+      userId,
+      file,
+      typeof title === 'string' ? title : undefined,
+      typeof expirationType === 'string' ? expirationType : undefined
+    );
     return corsResponse(request, { item }, { status: 201 });
   }
 
@@ -123,5 +154,9 @@ export default {
       const message = error instanceof Error ? error.message : 'Unexpected failure.';
       return withCors(request, errorResponse(400, message));
     }
+  },
+
+  async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(runScheduledCleanup(env));
   }
 };

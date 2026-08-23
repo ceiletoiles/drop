@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { AppShell } from '../components/layout/AppShell';
 import { Button } from '../components/ui/Button';
@@ -17,8 +17,9 @@ import {
   UploadIcon
 } from '../components/ui/Icon';
 import { useAuth } from '../features/auth/auth-context';
-import { deleteItem, createTextItem, updateTextItem, uploadFile } from '../features/items/items-api';
+import { consumeItem, deleteItem, createTextItem, updateExpirationItem, updateTextItem, uploadFile } from '../features/items/items-api';
 import { RecentItemsList } from '../features/items/RecentItemsList';
+import { ExpirationModal } from '../features/items/ExpirationModal';
 import { TextEditorModal } from '../features/items/TextEditorModal';
 import { UploadDropzone, type UploadItemState } from '../features/items/UploadDropzone';
 import { useItems } from '../features/items/useItems';
@@ -29,6 +30,8 @@ import { ApiBaseUrlBanner } from '../features/settings/ApiBaseUrlBanner';
 import { formatFileSize, getInitials } from '../lib/format';
 import { needsApiOverride } from '../lib/api-config';
 import { clsx } from 'clsx';
+import { DEFAULT_EXPIRATION_TYPE } from '../../shared/constants';
+import type { ExpirationType } from '../../shared/types';
 
 type ViewFilter = 'home' | 'all' | 'text' | 'files' | 'images' | 'search';
 
@@ -86,6 +89,8 @@ export const DashboardPage = () => {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [pendingTextDraft, setPendingTextDraft] = useState<{ title: string; content: string } | null>(null);
+  const [newTextExpirationType, setNewTextExpirationType] = useState<ExpirationType>(DEFAULT_EXPIRATION_TYPE);
+  const [expirationItem, setExpirationItem] = useState<Item | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [uploadItems, setUploadItems] = useState<UploadItemState[]>([]);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -111,6 +116,31 @@ export const DashboardPage = () => {
       .map((part: string) => capitalize(part))
       .join(' ');
   }, [user?.email, user?.user_metadata?.full_name, user?.user_metadata?.name]);
+
+  const showAction = useCallback((message: string) => {
+    setActionMessage(message);
+    window.setTimeout(() => setActionMessage(null), 2500);
+  }, []);
+
+  const openTextDraft = useCallback((content: string) => {
+    const normalized = content.replace(/\r\n/g, '\n');
+    const title = normalized.split('\n').find((line) => line.trim().length > 0)?.trim().slice(0, 60) || 'Clipboard note';
+    setEditingItem(null);
+    setPendingTextDraft({ title, content: normalized });
+    setNewTextExpirationType(DEFAULT_EXPIRATION_TYPE);
+    setEditorOpen(true);
+  }, []);
+
+  const handlePasteClipboard = useCallback(async () => {
+    try {
+      if (!token) return;
+      const text = await navigator.clipboard.readText();
+      if (!text.trim()) throw new Error('Clipboard is empty.');
+      openTextDraft(text);
+    } catch (error) {
+      showAction(error instanceof Error ? error.message : 'Paste failed.');
+    }
+  }, [openTextDraft, showAction, token]);
 
   useEffect(() => {
     if (activeFilter === 'search') {
@@ -159,6 +189,12 @@ export const DashboardPage = () => {
         return;
       }
 
+      if (key === 'v') {
+        event.preventDefault();
+        void handlePasteClipboard();
+        return;
+      }
+
       if (event.key === '/') {
         event.preventDefault();
         setActiveFilter('search');
@@ -171,7 +207,7 @@ export const DashboardPage = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [handlePasteClipboard]);
 
   useEffect(() => {
     const handlePaste = (event: ClipboardEvent) => {
@@ -204,14 +240,10 @@ export const DashboardPage = () => {
 
   if (!authLoading && !session) return <Navigate to="/login" replace />;
 
-  const showAction = (message: string) => {
-    setActionMessage(message);
-    window.setTimeout(() => setActionMessage(null), 2500);
-  };
-
   const handleCreateText = () => {
     setEditingItem(null);
     setPendingTextDraft({ title: '', content: '' });
+    setNewTextExpirationType(DEFAULT_EXPIRATION_TYPE);
     setEditorOpen(true);
   };
 
@@ -228,7 +260,11 @@ export const DashboardPage = () => {
       await updateTextItem(token, payload.id, { title: payload.title, content: payload.content });
       showAction('Text item updated.');
     } else {
-      await createTextItem(token, { title: payload.title || 'Untitled note', content: payload.content });
+      await createTextItem(token, {
+        title: payload.title || 'Untitled note',
+        content: payload.content,
+        expirationType: newTextExpirationType
+      });
       showAction('Text item saved.');
     }
 
@@ -252,8 +288,20 @@ export const DashboardPage = () => {
 
   const handleCopy = async (item: Item) => {
     try {
+      if (!token) throw new Error('Missing session.');
       if (!item.text?.content) return;
       await navigator.clipboard.writeText(item.text.content);
+      if (item.expirationType === 'CONSUME') {
+        try {
+          await consumeItem(token, item.id);
+          refresh();
+          showAction('Text copied and removed.');
+        } catch (error) {
+          refresh();
+          showAction(error instanceof Error ? `Text copied. ${error.message}` : 'Text copied, but delete failed.');
+        }
+        return;
+      }
       showAction('Text copied.');
     } catch (error) {
       showAction(error instanceof Error ? error.message : 'Copy failed.');
@@ -262,7 +310,7 @@ export const DashboardPage = () => {
 
   const handleDownload = async (item: Item) => {
     try {
-      if (!token) return;
+      if (!token) throw new Error('Missing session.');
       const response = await fetch(apiUrl(`/api/files/${item.id}/download`), {
         headers: {
           Authorization: `Bearer ${token}`
@@ -281,6 +329,17 @@ export const DashboardPage = () => {
       link.download = item.file?.originalName ?? item.title;
       link.click();
       window.URL.revokeObjectURL(url);
+      if (item.expirationType === 'CONSUME') {
+        try {
+          await consumeItem(token, item.id);
+          refresh();
+          showAction('Download complete and removed.');
+        } catch (error) {
+          refresh();
+          showAction(error instanceof Error ? `Download completed. ${error.message}` : 'Download completed, but delete failed.');
+        }
+        return;
+      }
       showAction('Download started.');
     } catch (error) {
       showAction(error instanceof Error ? error.message : 'Download failed.');
@@ -332,7 +391,7 @@ export const DashboardPage = () => {
     }));
 
     try {
-      await uploadFile(token, file, (progress) => {
+      await uploadFile(token, file, DEFAULT_EXPIRATION_TYPE, (progress) => {
         updateUploadItem(uploadId, (item) => ({
           ...item,
           status: 'uploading',
@@ -384,25 +443,6 @@ export const DashboardPage = () => {
     }
   };
 
-  const openTextDraft = (content: string) => {
-    const normalized = content.replace(/\r\n/g, '\n');
-    const title = normalized.split('\n').find((line) => line.trim().length > 0)?.trim().slice(0, 60) || 'Clipboard note';
-    setEditingItem(null);
-    setPendingTextDraft({ title, content: normalized });
-    setEditorOpen(true);
-  };
-
-  const handlePasteClipboard = async () => {
-    try {
-      if (!token) return;
-      const text = await navigator.clipboard.readText();
-      if (!text.trim()) throw new Error('Clipboard is empty.');
-      openTextDraft(text);
-    } catch (error) {
-      showAction(error instanceof Error ? error.message : 'Paste failed.');
-    }
-  };
-
   async function handleClipboardPaste(event: ClipboardEvent) {
     if (!token || isEditableTarget(event.target)) return;
 
@@ -450,6 +490,17 @@ export const DashboardPage = () => {
     setActiveFilter(key);
     setDrawerOpen(false);
     setMobileActionsOpen(false);
+  };
+
+  const handleChangeExpiration = (item: Item) => {
+    setExpirationItem(item);
+  };
+
+  const saveExpiration = async (itemId: string, expirationType: ExpirationType) => {
+    if (!token) throw new Error('Missing session.');
+    await updateExpirationItem(token, itemId, { expirationType });
+    refresh();
+    showAction('Expiration updated.');
   };
 
   return (
@@ -662,6 +713,7 @@ export const DashboardPage = () => {
               onCopyText={handleCopy}
               onDelete={handleDelete}
               onDownload={handleDownload}
+              onChangeExpiration={handleChangeExpiration}
             />
 
             {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
@@ -889,6 +941,8 @@ export const DashboardPage = () => {
         onSave={handleSaveText}
         draftTitle={pendingTextDraft?.title}
         draftContent={pendingTextDraft?.content}
+        expirationType={newTextExpirationType}
+        onExpirationTypeChange={setNewTextExpirationType}
         onDelete={async (itemId) => {
           try {
             if (!token) return;
@@ -902,6 +956,12 @@ export const DashboardPage = () => {
             showAction(error instanceof Error ? error.message : 'Delete failed.');
           }
         }}
+      />
+      <ExpirationModal
+        open={Boolean(expirationItem)}
+        item={expirationItem}
+        onClose={() => setExpirationItem(null)}
+        onSave={saveExpiration}
       />
 
       <input

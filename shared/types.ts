@@ -1,5 +1,8 @@
+import type { EXPIRATION_TYPES } from './constants';
+
 export type ItemType = 'text' | 'file';
 export type ActivityAction = 'sign_in' | 'sign_out' | 'create' | 'upload' | 'edit' | 'delete';
+export type ExpirationType = (typeof EXPIRATION_TYPES)[number];
 
 export interface FileMetadata {
   originalName: string;
@@ -15,6 +18,8 @@ export interface ItemSummary {
   id: string;
   type: ItemType;
   title: string;
+  expirationType: ExpirationType;
+  expiresAt: string | null;
   createdAt: string;
   updatedAt: string;
   file?: FileMetadata;
