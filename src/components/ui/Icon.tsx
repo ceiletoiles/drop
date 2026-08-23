@@ -128,6 +128,16 @@ export const CopyIcon = ({ className, ...props }: IconProps) => (
   </svg>
 );
 
+export const ShareIcon = ({ className, ...props }: IconProps) => (
+  <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
+    <circle cx="18" cy="5.5" r="2.2" fill="currentColor" stroke="none" />
+    <circle cx="6" cy="12" r="2.2" fill="currentColor" stroke="none" />
+    <circle cx="18" cy="18.5" r="2.2" fill="currentColor" stroke="none" />
+    <path d="M8 11l7.2-4.2" />
+    <path d="M8 13l7.2 4.2" />
+  </svg>
+);
+
 export const DownloadIcon = ({ className, ...props }: IconProps) => (
   <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
     <path d="M12 4v10" />

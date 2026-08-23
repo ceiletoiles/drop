@@ -24,6 +24,41 @@ export interface ItemSummary {
   updatedAt: string;
   file?: FileMetadata;
   text?: TextMetadata;
+  share?: ShareSummary | null;
+}
+
+export interface ShareSummary {
+  createdAt: string;
+  downloadCount: number;
+}
+
+export interface SharedItemSummary {
+  type: ItemType;
+  title: string;
+  expirationType: ExpirationType;
+  expiresAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  file?: FileMetadata;
+  text?: TextMetadata;
+}
+
+export interface ShareCreateResponse {
+  item: ItemSummary;
+  share: {
+    token: string;
+    url: string;
+    createdAt: string;
+    downloadCount: number;
+  };
+}
+
+export interface ShareResponse {
+  item: SharedItemSummary;
+  share: {
+    createdAt: string;
+    downloadCount: number;
+  };
 }
 
 export interface ActivitySummary {

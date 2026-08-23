@@ -2,8 +2,9 @@ import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type P
 import type { Item } from './types';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { Modal } from '../../components/ui/Modal';
 import { Spinner } from '../../components/ui/Spinner';
-import { CopyIcon, DownloadIcon, ListIcon, MoreHorizontalIcon, PencilIcon, SearchIcon, SortIcon, TextIcon, TrashIcon } from '../../components/ui/Icon';
+import { CopyIcon, DownloadIcon, ListIcon, MoreHorizontalIcon, PencilIcon, SearchIcon, ShareIcon, SortIcon, TextIcon, TrashIcon } from '../../components/ui/Icon';
 import { FileTypeIcon } from '../../components/ui/FileTypeIcon';
 import { formatFileSize, formatRelativeTime } from '../../lib/format';
 import { getFileTypeLabel } from '../../lib/file';
@@ -25,6 +26,7 @@ interface RecentItemsListProps {
   onCopyText: (item: Item) => Promise<void>;
   onDelete: (item: Item) => Promise<void>;
   onDownload: (item: Item) => Promise<void>;
+  onShare: (item: Item) => void;
   onChangeExpiration: (item: Item) => void;
 }
 
@@ -43,10 +45,12 @@ export const RecentItemsList = ({
   onCopyText,
   onDelete,
   onDownload,
+  onShare,
   onChangeExpiration
 }: RecentItemsListProps) => {
   const [menuState, setMenuState] = useState<{ itemId: string; top: number; left: number } | null>(null);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [infoItem, setInfoItem] = useState<Item | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -65,6 +69,7 @@ export const RecentItemsList = ({
       if (event.key === 'Escape') {
         setMenuState(null);
         setSortMenuOpen(false);
+        setInfoItem(null);
       }
     };
 
@@ -148,6 +153,16 @@ export const RecentItemsList = ({
       ) : null}
     </div>
   );
+
+  const infoEntries = infoItem
+    ? [
+        { label: 'Type', value: getFileTypeLabel({ itemType: infoItem.type, filename: infoItem.file?.originalName, mimeType: infoItem.file?.mimeType }) },
+        infoItem.type === 'file' && infoItem.file ? { label: 'Size', value: formatFileSize(infoItem.file.size) } : null,
+        { label: 'Created', value: formatRelativeTime(infoItem.createdAt) },
+        { label: 'Expiration', value: getExpirationSummary(infoItem.expirationType, infoItem.expiresAt, infoItem.type) },
+        infoItem.share ? { label: 'Share', value: `Shared${infoItem.share.downloadCount > 0 ? ` · ${infoItem.share.downloadCount} downloads` : ''}` } : { label: 'Share', value: 'Not shared' }
+      ].filter((entry): entry is { label: string; value: string } => Boolean(entry))
+    : [];
 
   const headerCopy = (
     <div className="min-w-0 flex min-h-12 flex-col justify-center">
@@ -273,10 +288,15 @@ export const RecentItemsList = ({
                         {item.type === 'file' && item.file ? <span className="shrink-0">{formatFileSize(item.file.size)}</span> : null}
                         {item.type === 'file' && item.file ? <span className="hidden h-1 w-1 shrink-0 rounded-full bg-slate-300 sm:inline-block" aria-hidden="true" /> : null}
                         <span className="shrink-0">{formatRelativeTime(item.createdAt)}</span>
-                        <span className="flex shrink-0 items-center gap-1 text-slate-500">
+                        <span className="hidden shrink-0 items-center gap-1 text-slate-500 sm:flex">
                           <TrashIcon className="h-3 w-3" />
                           <span className="shrink-0">{getExpirationSummary(item.expirationType, item.expiresAt, item.type)}</span>
                         </span>
+                        {item.share ? (
+                          <span className="hidden shrink-0 font-medium text-emerald-600 sm:inline">
+                            {`Shared${item.share.downloadCount > 0 ? ` · ${item.share.downloadCount} downloads` : ''}`}
+                          </span>
+                        ) : null}
                       </p>
                     </div>
                   </button>
@@ -304,6 +324,16 @@ export const RecentItemsList = ({
                       </Button>
                     )}
 
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="h-12 w-12 rounded-2xl p-0 text-slate-700 hover:bg-slate-100"
+                      onClick={() => onShare(item)}
+                      aria-label={item.share ? 'Share again' : 'Share item'}
+                    >
+                      <ShareIcon className="h-6 w-6" />
+                    </Button>
+
                     <div className="relative">
                       <Button
                         type="button"
@@ -326,6 +356,17 @@ export const RecentItemsList = ({
                         >
                           {isText ? (
                             <>
+                              <button
+                                type="button"
+                                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left hover:bg-slate-100"
+                                onClick={() => {
+                                  setMenuState(null);
+                                  setInfoItem(item);
+                                }}
+                              >
+                                <ListIcon className="h-5 w-5" />
+                                Info
+                              </button>
                               <button
                                 type="button"
                                 className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left hover:bg-slate-100"
@@ -367,6 +408,17 @@ export const RecentItemsList = ({
                                 className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left hover:bg-slate-100"
                                 onClick={() => {
                                   setMenuState(null);
+                                  setInfoItem(item);
+                                }}
+                              >
+                                <ListIcon className="h-5 w-5" />
+                                Info
+                              </button>
+                              <button
+                                type="button"
+                                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left hover:bg-slate-100"
+                                onClick={() => {
+                                  setMenuState(null);
                                   onChangeExpiration(item);
                                 }}
                               >
@@ -396,6 +448,31 @@ export const RecentItemsList = ({
           })}
         </ul>
       )}
+
+      <Modal
+        open={Boolean(infoItem)}
+        title="Item info"
+        onClose={() => setInfoItem(null)}
+      >
+        {infoItem ? (
+          <div className="space-y-4">
+            <div className="rounded-[1.5rem] border border-slate-100 bg-slate-50 px-4 py-4">
+              <p className="text-sm font-semibold text-slate-950">{infoItem.title}</p>
+              <p className="mt-1 text-sm text-slate-500">
+                {getFileTypeLabel({ itemType: infoItem.type, filename: infoItem.file?.originalName, mimeType: infoItem.file?.mimeType })}
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {infoEntries.map((entry) => (
+                <div key={entry.label} className="rounded-[1.25rem] border border-slate-100 bg-white px-4 py-3">
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">{entry.label}</p>
+                  <p className="mt-1 text-sm font-medium text-slate-950">{entry.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </Modal>
     </section>
   );
 };

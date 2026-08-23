@@ -1,21 +1,25 @@
+import { lazy, Suspense, type ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
-import type { ReactNode } from 'react';
 import { useAuth } from './features/auth/auth-context';
-import { DashboardPage } from './pages/DashboardPage';
-import { LoginPage } from './pages/LoginPage';
-import { NotFoundPage } from './pages/NotFoundPage';
-import { AccountPage } from './pages/AccountPage';
-import { SignupPage } from './pages/SignupPage';
 import { Spinner } from './components/ui/Spinner';
+
+const DashboardPage = lazy(() => import('./pages/DashboardPage').then((module) => ({ default: module.DashboardPage })));
+const LoginPage = lazy(() => import('./pages/LoginPage').then((module) => ({ default: module.LoginPage })));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage').then((module) => ({ default: module.NotFoundPage })));
+const AccountPage = lazy(() => import('./pages/AccountPage').then((module) => ({ default: module.AccountPage })));
+const SignupPage = lazy(() => import('./pages/SignupPage').then((module) => ({ default: module.SignupPage })));
+const SharePage = lazy(() => import('./pages/SharePage').then((module) => ({ default: module.SharePage })));
+
+const LoadingScreen = () => (
+  <div className="grid min-h-screen place-items-center bg-slate-50 text-slate-700">
+    <Spinner />
+  </div>
+);
 
 const AuthRoute = ({ children }: { children: ReactNode }) => {
   const { loading, user } = useAuth();
   if (loading) {
-    return (
-      <div className="grid min-h-screen place-items-center bg-slate-50 text-slate-700">
-        <Spinner />
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (user) return <Navigate to="/" replace />;
@@ -25,11 +29,7 @@ const AuthRoute = ({ children }: { children: ReactNode }) => {
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
   const { loading, user } = useAuth();
   if (loading) {
-    return (
-      <div className="grid min-h-screen place-items-center bg-slate-50 text-slate-700">
-        <Spinner />
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (!user) return <Navigate to="/login" replace />;
@@ -42,7 +42,9 @@ export const App = () => (
       path="/login"
       element={
         <AuthRoute>
-          <LoginPage />
+          <Suspense fallback={<LoadingScreen />}>
+            <LoginPage />
+          </Suspense>
         </AuthRoute>
       }
     />
@@ -50,7 +52,9 @@ export const App = () => (
       path="/signup"
       element={
         <AuthRoute>
-          <SignupPage />
+          <Suspense fallback={<LoadingScreen />}>
+            <SignupPage />
+          </Suspense>
         </AuthRoute>
       }
     />
@@ -58,7 +62,9 @@ export const App = () => (
       path="/"
       element={
         <ProtectedRoute>
-          <DashboardPage />
+          <Suspense fallback={<LoadingScreen />}>
+            <DashboardPage />
+          </Suspense>
         </ProtectedRoute>
       }
     />
@@ -66,10 +72,27 @@ export const App = () => (
       path="/account"
       element={
         <ProtectedRoute>
-          <AccountPage />
+          <Suspense fallback={<LoadingScreen />}>
+            <AccountPage />
+          </Suspense>
         </ProtectedRoute>
       }
     />
-    <Route path="*" element={<NotFoundPage />} />
+    <Route
+      path="/s/:token"
+      element={
+        <Suspense fallback={<LoadingScreen />}>
+          <SharePage />
+        </Suspense>
+      }
+    />
+    <Route
+      path="*"
+      element={
+        <Suspense fallback={<LoadingScreen />}>
+          <NotFoundPage />
+        </Suspense>
+      }
+    />
   </Routes>
 );

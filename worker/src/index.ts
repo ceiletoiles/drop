@@ -1,7 +1,23 @@
 import type { Env } from './types';
 import { getAuthenticatedUser } from './lib/auth';
 import { corsResponse, errorResponse, withCors } from './lib/response';
-import { createText, consumeItem, deleteItem, downloadItemFile, listItems, runScheduledCleanup, updateExpiration, updateText, uploadItem } from './lib/items';
+import {
+  copySharedItemText,
+  createShareLink,
+  createText,
+  consumeItem,
+  deleteItem,
+  downloadItemFile,
+  downloadSharedItemFile,
+  getItemShareLink,
+  getSharedItem,
+  listItems,
+  revokeShareLink,
+  runScheduledCleanup,
+  updateExpiration,
+  updateText,
+  uploadItem
+} from './lib/items';
 import { listActivities, recordActivity } from './lib/activity';
 import { expirationTypeSchema } from '../../shared/schemas';
 import { MAX_SEARCH_CHARS } from '../../shared/constants';
@@ -15,6 +31,45 @@ const readBody = async (request: Request) => {
 };
 
 const notFound = () => errorResponse(404, 'Not found.');
+
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string') return message;
+  }
+  return 'Unexpected failure.';
+};
+
+const handlePublicShare = async (request: Request, env: Env) => {
+  const url = new URL(request.url);
+  const segments = url.pathname.split('/');
+  const token = segments[3];
+  if (!token) return errorResponse(400, 'Invalid share token.');
+
+  if (request.method === 'GET' && segments.length === 4) {
+    const payload = await getSharedItem(env, token);
+    return corsResponse(request, payload);
+  }
+
+  if (request.method === 'GET' && segments[4] === 'download') {
+    const { object, fileRow } = await downloadSharedItemFile(env, token);
+    const headers = new Headers();
+    headers.set('Content-Type', fileRow.mime_type || object.httpMetadata?.contentType || 'application/octet-stream');
+    headers.set('Content-Length', object.size.toString());
+    headers.set('Content-Disposition', `attachment; filename="${fileRow.original_name.replace(/"/g, '\\"')}"`);
+    headers.set('Cache-Control', 'private, no-store');
+    headers.set('X-Content-Type-Options', 'nosniff');
+    return withCors(request, new Response(object.body, { headers }));
+  }
+
+  if (request.method === 'POST' && segments[4] === 'copy') {
+    const payload = await copySharedItemText(env, token);
+    return corsResponse(request, payload);
+  }
+
+  return notFound();
+};
 
 const handleItems = async (request: Request, env: Env, userId: string) => {
   const url = new URL(request.url);
@@ -60,6 +115,30 @@ const handleItems = async (request: Request, env: Env, userId: string) => {
       expirationType
     });
     return corsResponse(request, { item }, { status: 201 });
+  }
+
+  if (method === 'POST' && url.pathname.startsWith('/api/items/') && url.pathname.endsWith('/share')) {
+    const segments = url.pathname.split('/');
+    const itemId = segments[3];
+    if (!itemId) return errorResponse(400, 'Invalid item id.');
+    const payload = await createShareLink(env, userId, itemId);
+    return corsResponse(request, payload, { status: 201 });
+  }
+
+  if (method === 'GET' && url.pathname.startsWith('/api/items/') && url.pathname.endsWith('/share')) {
+    const segments = url.pathname.split('/');
+    const itemId = segments[3];
+    if (!itemId) return errorResponse(400, 'Invalid item id.');
+    const payload = await getItemShareLink(env, userId, itemId);
+    return corsResponse(request, payload);
+  }
+
+  if (method === 'DELETE' && url.pathname.startsWith('/api/items/') && url.pathname.endsWith('/share')) {
+    const segments = url.pathname.split('/');
+    const itemId = segments[3];
+    if (!itemId) return errorResponse(400, 'Invalid item id.');
+    const payload = await revokeShareLink(env, userId, itemId);
+    return corsResponse(request, payload);
   }
 
   if (method === 'PUT' && url.pathname.startsWith('/api/items/text/')) {
@@ -142,6 +221,17 @@ export default {
       return corsResponse(request, { ok: true });
     }
 
+    if (url.pathname.startsWith('/api/share/')) {
+      try {
+        const response = await handlePublicShare(request, env);
+        return withCors(request, response);
+      } catch (error) {
+        const message = getErrorMessage(error);
+        const status = message === 'This Drop has expired.' ? 404 : 404;
+        return withCors(request, errorResponse(status, message));
+      }
+    }
+
     const user = await getAuthenticatedUser(request, env);
     if (!user) {
       return withCors(request, errorResponse(401, 'Unauthorized.'));
@@ -151,7 +241,7 @@ export default {
       const response = await handleItems(request, env, user.id);
       return withCors(request, response);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unexpected failure.';
+      const message = getErrorMessage(error);
       return withCors(request, errorResponse(400, message));
     }
   },

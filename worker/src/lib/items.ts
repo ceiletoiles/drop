@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { createTextItemSchema, expirationTypeSchema, updateTextItemSchema } from '../../../shared/schemas';
 import { DEFAULT_EXPIRATION_TYPE, MAX_UPLOAD_BYTES } from '../../../shared/constants';
-import type { ExpirationType, FileMetadata, ItemSummary, ItemType } from '../../../shared/types';
+import type { ExpirationType, FileMetadata, ItemSummary, ItemType, ShareCreateResponse, ShareResponse, ShareSummary, SharedItemSummary } from '../../../shared/types';
 import { sanitizeFilename } from '../../../shared/utils';
 import type { Env } from '../types';
 import { deleteFile, getFile, putFile } from './storage';
@@ -37,7 +37,27 @@ interface StorageDeletionRow {
   attempts: number;
 }
 
+interface ShareRow {
+  id: string;
+  item_id: string;
+  token: string | null;
+  token_hash: string;
+  created_at: string;
+  revoked_at: string | null;
+  download_count: number;
+}
+
+interface ShareSummaryRow {
+  id: string;
+  item_id: string;
+  created_at: string;
+  revoked_at: string | null;
+  download_count: number;
+}
+
 const selectItemColumns = 'id,user_id,type,title,created_at,updated_at,expiration_type,expires_at';
+const selectShareSummaryColumns = 'id,item_id,created_at,revoked_at,download_count';
+const selectShareColumns = 'id,item_id,token,token_hash,created_at,revoked_at,download_count';
 
 const createDb = (env: Env): SupabaseClient =>
   createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -53,7 +73,9 @@ const toFileMetadata = (row: FileRow): FileMetadata => ({
   size: row.size
 });
 
-const mapItem = (item: ItemRow, fileRow?: FileRow, textRow?: TextRow): ItemSummary => ({
+const mapShare = (row?: ShareSummaryRow | null): ShareSummary | null => (row ? { createdAt: row.created_at, downloadCount: row.download_count } : null);
+
+const mapItem = (item: ItemRow, fileRow?: FileRow, textRow?: TextRow, shareRow?: ShareSummaryRow | null): ItemSummary => ({
   id: item.id,
   type: item.type,
   title: item.title,
@@ -62,7 +84,8 @@ const mapItem = (item: ItemRow, fileRow?: FileRow, textRow?: TextRow): ItemSumma
   createdAt: item.created_at,
   updatedAt: item.updated_at,
   file: fileRow ? toFileMetadata(fileRow) : undefined,
-  text: textRow ? { content: textRow.content } : undefined
+  text: textRow ? { content: textRow.content } : undefined,
+  share: mapShare(shareRow ?? null) ?? undefined
 });
 
 const getTextSizeBytes = (value: string) => new TextEncoder().encode(value).length;
@@ -96,6 +119,55 @@ const isExpired = (item: Pick<ItemRow, 'expires_at'>, nowIso = new Date().toISOS
 
 const isActiveItem = (item: ItemRow) => !isExpired(item);
 
+const isMaybeShareToken = (value: string) => /^[A-Za-z0-9_-]{32,128}$/.test(value);
+
+const bytesToBase64Url = (bytes: Uint8Array) =>
+  btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+
+const generateShareToken = () => {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return bytesToBase64Url(bytes);
+};
+
+const hashShareToken = async (token: string) => {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+};
+
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string') return message;
+  }
+  return '';
+};
+
+const isMissingShareTokenSupport = (error: unknown) => {
+  const message = getErrorMessage(error).toLowerCase();
+  return (
+    message.includes('create_share_link') ||
+    message.includes('column "token"') ||
+    message.includes('column token') ||
+    message.includes('does not exist')
+  );
+};
+
+const toPublicItem = (item: ItemRow, fileRow?: FileRow, textRow?: TextRow): SharedItemSummary => ({
+  type: item.type,
+  title: item.title,
+  expirationType: item.expiration_type,
+  expiresAt: item.expires_at,
+  createdAt: item.created_at,
+  updatedAt: item.updated_at,
+  file: fileRow ? toFileMetadata(fileRow) : undefined,
+  text: textRow ? { content: textRow.content } : undefined
+});
+
 const getItemRows = async (db: SupabaseClient, userId: string) => {
   const { data: items, error: itemsError } = await db
     .from('items')
@@ -107,21 +179,24 @@ const getItemRows = async (db: SupabaseClient, userId: string) => {
 
   const itemIds = (items ?? []).filter((item) => isActiveItem(item as ItemRow)).map((item) => item.id);
   if (itemIds.length === 0) {
-    return { items: [] as ItemRow[], files: [] as FileRow[], textItems: [] as TextRow[] };
+    return { items: [] as ItemRow[], files: [] as FileRow[], textItems: [] as TextRow[], shares: [] as ShareRow[] };
   }
 
-  const [{ data: fileRows, error: fileError }, { data: textRows, error: textError }] = await Promise.all([
+  const [{ data: fileRows, error: fileError }, { data: textRows, error: textError }, { data: shareRows, error: shareError }] = await Promise.all([
     db.from('files').select('item_id,storage_key,original_name,mime_type,size').in('item_id', itemIds),
-    db.from('text_items').select('item_id,content').in('item_id', itemIds)
+    db.from('text_items').select('item_id,content').in('item_id', itemIds),
+    db.from('shares').select(selectShareSummaryColumns).in('item_id', itemIds).is('revoked_at', null)
   ]);
 
   if (fileError) throw fileError;
   if (textError) throw textError;
+  if (shareError) throw shareError;
 
   return {
     items: (items ?? []).filter((item) => isActiveItem(item as ItemRow)) as ItemRow[],
     files: fileRows ?? [],
-    textItems: textRows ?? []
+    textItems: textRows ?? [],
+    shares: (shareRows ?? []) as ShareSummaryRow[]
   };
 };
 
@@ -154,6 +229,59 @@ const getItemWithRelations = async (db: SupabaseClient, userId: string, itemId: 
     fileRow,
     textRow
   };
+};
+
+const getActiveShareByItemId = async (db: SupabaseClient, itemId: string) => {
+  const { data, error } = await db.from('shares').select(selectShareColumns).eq('item_id', itemId).is('revoked_at', null).maybeSingle();
+  if (error) throw error;
+  return data as ShareRow | null;
+};
+
+const getShareByToken = async (db: SupabaseClient, token: string) => {
+  if (!isMaybeShareToken(token)) return null;
+  const tokenHash = await hashShareToken(token);
+  const { data, error } = await db.from('shares').select(selectShareColumns).eq('token_hash', tokenHash).maybeSingle();
+  if (error) throw error;
+  return data as ShareRow | null;
+};
+
+const getSharedItemWithRelations = async (db: SupabaseClient, shareToken: string) => {
+  const share = await getShareByToken(db, shareToken);
+  if (!share || share.revoked_at) throw new Error('This shared Drop is no longer available.');
+
+  const { data: item, error: itemError } = await db.from('items').select(selectItemColumns).eq('id', share.item_id).single();
+  if (itemError || !item) throw new Error('This shared Drop is no longer available.');
+  if (!isActiveItem(item as ItemRow)) throw new Error('This Drop has expired.');
+
+  const typedItem = item as ItemRow;
+  let fileRow: FileRow | undefined;
+  let textRow: TextRow | undefined;
+
+  if (typedItem.type === 'file') {
+    const result = await db.from('files').select('item_id,storage_key,original_name,mime_type,size').eq('item_id', typedItem.id).single();
+    if (result.error || !result.data) throw new Error('This shared Drop is no longer available.');
+    fileRow = result.data as FileRow;
+  } else {
+    const result = await db.from('text_items').select('item_id,content').eq('item_id', typedItem.id).single();
+    if (result.error || !result.data) throw new Error('This shared Drop is no longer available.');
+    textRow = result.data as TextRow;
+  }
+
+  return {
+    share,
+    item: typedItem,
+    fileRow,
+    textRow
+  };
+};
+
+const revokeActiveShare = async (db: SupabaseClient, itemId: string) => {
+  const share = await getActiveShareByItemId(db, itemId);
+  if (!share) return null;
+
+  const { error } = await db.from('shares').update({ revoked_at: new Date().toISOString() }).eq('id', share.id);
+  if (error) throw error;
+  return share;
 };
 
 const queueFileDeletion = async (
@@ -220,7 +348,8 @@ export const listItems = async (env: Env, userId: string, query: string) => {
       ...mapItem(
         item,
         rows.files.find((file) => file.item_id === item.id),
-        rows.textItems.find((textItem) => textItem.item_id === item.id)
+        rows.textItems.find((textItem) => textItem.item_id === item.id),
+        rows.shares.find((share) => share.item_id === item.id) ?? null
       )
     }))
     .filter((item) => {
@@ -503,6 +632,145 @@ export const uploadItem = async (env: Env, userId: string, file: File, title?: s
     await deleteFile(env, storageKey);
     throw error;
   }
+};
+
+export const createShareLink = async (env: Env, userId: string, itemId: string): Promise<ShareCreateResponse> => {
+  const db = createDb(env);
+  const { item, fileRow, textRow } = await getItemWithRelations(db, userId, itemId);
+
+  const token = generateShareToken();
+  const tokenHash = await hashShareToken(token);
+
+  let rpcResult = await db.rpc('create_share_link', {
+    p_item_id: item.id,
+    p_token: token,
+    p_token_hash: tokenHash
+  });
+
+  if (rpcResult.error && isMissingShareTokenSupport(rpcResult.error)) {
+    rpcResult = await db.rpc('create_share_link', {
+      p_item_id: item.id,
+      p_token_hash: tokenHash
+    });
+  }
+
+  if (rpcResult.error) throw new Error(getErrorMessage(rpcResult.error) || 'Failed to create share link.');
+  const share = (rpcResult.data ?? null) as ShareRow | null;
+  if (!share) throw new Error('Failed to create share link.');
+
+  const refreshedItem = mapItem(item, fileRow, textRow, share);
+
+  return {
+    item: refreshedItem,
+    share: {
+      token: share.token ?? token,
+      url: `/s/${share.token ?? token}`,
+      createdAt: share.created_at,
+      downloadCount: share.download_count
+    }
+  };
+};
+
+export const getItemShareLink = async (env: Env, userId: string, itemId: string): Promise<ShareCreateResponse> => {
+  const db = createDb(env);
+  const { item, fileRow, textRow } = await getItemWithRelations(db, userId, itemId);
+  const share = await getActiveShareByItemId(db, item.id);
+
+  if (!share || !share.token) {
+    throw new Error('No active share link yet.');
+  }
+
+  return {
+    item: mapItem(item, fileRow, textRow, share),
+    share: {
+      token: share.token,
+      url: `/s/${share.token}`,
+      createdAt: share.created_at,
+      downloadCount: share.download_count
+    }
+  };
+};
+
+export const revokeShareLink = async (env: Env, userId: string, itemId: string) => {
+  const db = createDb(env);
+  const { item } = await getItemWithRelations(db, userId, itemId);
+  await revokeActiveShare(db, item.id);
+  return { ok: true as const };
+};
+
+export const getSharedItem = async (env: Env, shareToken: string): Promise<ShareResponse> => {
+  const db = createDb(env);
+  const { share, item, fileRow, textRow } = await getSharedItemWithRelations(db, shareToken);
+
+  return {
+    item: toPublicItem(item, fileRow, textRow),
+    share: {
+      createdAt: share.created_at,
+      downloadCount: share.download_count
+    }
+  };
+};
+
+export const downloadSharedItemFile = async (env: Env, shareToken: string) => {
+  const db = createDb(env);
+  const { share, item, fileRow } = await getSharedItemWithRelations(db, shareToken);
+  if (item.type !== 'file' || !fileRow) throw new Error('This shared Drop is no longer available.');
+
+  const object = await getFile(env, fileRow.storage_key);
+  if (!object) throw new Error('File missing from storage.');
+
+  const { error: updateError } = await db
+    .from('shares')
+    .update({ download_count: share.download_count + 1 })
+    .eq('id', share.id);
+  if (updateError) throw updateError;
+
+  if (item.expiration_type === 'CONSUME') {
+    if (fileRow) {
+      await queueFileDeletion(db, {
+        storageKey: fileRow.storage_key,
+        itemId: item.id,
+        userId: item.user_id,
+        reason: 'consume'
+      });
+    }
+
+    const { error: deleteError } = await db.from('items').delete().eq('id', item.id).eq('user_id', item.user_id);
+    if (deleteError) throw deleteError;
+
+    if (fileRow) {
+      const { data: queuedRows, error: queueError } = await db
+        .from('storage_deletion_queue')
+        .select('id,storage_key,attempts')
+        .eq('storage_key', fileRow.storage_key)
+        .limit(1);
+
+      if (queueError) throw queueError;
+      if (queuedRows?.[0]) {
+        await tryDeleteQueuedFile(env, db, queuedRows[0] as StorageDeletionRow);
+      }
+    }
+  }
+
+  return {
+    object,
+    fileRow
+  };
+};
+
+export const copySharedItemText = async (env: Env, shareToken: string) => {
+  const db = createDb(env);
+  const { item, textRow } = await getSharedItemWithRelations(db, shareToken);
+  if (item.type !== 'text' || !textRow) throw new Error('This shared Drop is no longer available.');
+
+  if (item.expiration_type === 'CONSUME') {
+    const { error: deleteError } = await db.from('items').delete().eq('id', item.id).eq('user_id', item.user_id);
+    if (deleteError) throw deleteError;
+  }
+
+  return {
+    item: toPublicItem(item, undefined, textRow)
+  };
 };
 
 export const downloadItemFile = async (env: Env, userId: string, itemId: string) => {

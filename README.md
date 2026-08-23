@@ -34,6 +34,16 @@ Drop is a lightweight cross-device transfer and scratchpad app built for fast ca
 - Scheduled cleanup for expired items and retryable R2 deletion
 - Existing items are migrated to `24_HOURS` on the V0.3 schema upgrade
 
+## What is in V0.4
+
+- Temporary share links for existing items
+- Secure random share tokens stored alongside hashes in the database
+- Public `/s/:token` share pages that do not require login
+- Owner-controlled share creation and revocation
+- Shared text copy and shared file download flows
+- Shared download counts for valid file downloads
+- Shared items still obey the existing V0.3 expiration and consume rules
+
 ## Architecture
 
 - Frontend: React, TypeScript, Vite, Tailwind CSS
@@ -116,6 +126,7 @@ Local env files:
    - `supabase/migrations/0002_activity_log.sql`
    - `supabase/migrations/0003_activity_log_entity.sql`
    - `supabase/migrations/0004_v03_expiration.sql`
+   - `supabase/migrations/0005_v04_sharing.sql`
 3. Ensure email/password auth is enabled.
 4. Copy the project URL and anon key into the frontend env file.
 5. Copy the service role key into the Worker env or Wrangler secrets.
@@ -128,6 +139,12 @@ The migration creates:
 - `storage_deletion_queue`
 
 It also enables row-level security, adds expiration-aware ownership policies, backfills existing records to `24_HOURS`, and creates the trigger that calculates `expires_at` server-side.
+The V0.4 migration adds:
+
+- `shares`
+- a retrievable share token plus hashed share-token lookup
+- one active share per item
+- cascade cleanup when an item is deleted
 
 ## R2 setup
 
@@ -146,21 +163,18 @@ The Worker lives in `worker/src/index.ts` and handles:
 - text create/update/delete
 - file upload/download/delete
 - consume-after-copy / consume-after-download
+- share creation, revocation, and public share resolution
 - scheduled cleanup of expired records and queued R2 deletions
 
 Cron cleanup is configured in `wrangler.toml` with a daily trigger at 00:00 UTC.
 
-## V0.3 behavior
-
-- New items default to `24_HOURS`.
-- The frontend submits an expiration policy, not a raw expiry timestamp.
-- The database calculates `expires_at` server-side.
-- `CONSUME` items use `expires_at = null` and are removed after the explicit copy/download action succeeds.
-- Time-based items are hidden and inaccessible once `expires_at` has passed, even before cleanup runs.
-
 ## Browser limitation
 
 For consume-after-download file items, the frontend treats the download as successful once the browser has fully received the response body and triggered the file save. Browsers do not expose a reliable signal for the OS-level save completing, so the app cannot prove the file was written to disk.
+
+The same limitation applies to shared file downloads: the Worker can validate the token, stream the file, and update the share count, but it cannot prove the browser finished writing the file to disk.
+
+Shared text `CONSUME` items delete after the recipient successfully copies the text and the backend confirms the consume operation.
 
 Deploy with:
 

@@ -23,6 +23,8 @@ import { ExpirationModal } from '../features/items/ExpirationModal';
 import { TextEditorModal } from '../features/items/TextEditorModal';
 import { UploadDropzone, type UploadItemState } from '../features/items/UploadDropzone';
 import { useItems } from '../features/items/useItems';
+import { createShare, fetchItemShare, revokeShare } from '../features/share/share-api';
+import { ShareModal } from '../features/share/ShareModal';
 import type { Item } from '../features/items/types';
 import { apiUrl } from '../lib/env';
 import { getFileTypeKind } from '../lib/file';
@@ -91,6 +93,11 @@ export const DashboardPage = () => {
   const [pendingTextDraft, setPendingTextDraft] = useState<{ title: string; content: string } | null>(null);
   const [newTextExpirationType, setNewTextExpirationType] = useState<ExpirationType>(DEFAULT_EXPIRATION_TYPE);
   const [expirationItem, setExpirationItem] = useState<Item | null>(null);
+  const [shareItem, setShareItem] = useState<Item | null>(null);
+  const [shareLink, setShareLink] = useState<string | null>(null);
+  const [shareDownloadCount, setShareDownloadCount] = useState<number | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [uploadItems, setUploadItems] = useState<UploadItemState[]>([]);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -98,6 +105,8 @@ export const DashboardPage = () => {
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const uploadControllersRef = useRef(new Map<string, AbortController>());
+  const shareLinkCacheRef = useRef(new Map<string, string>());
+  const shareRequestRef = useRef<string | null>(null);
   const clipboardPasteHandlerRef = useRef<(event: ClipboardEvent) => void>(() => undefined);
   const apiConfigured = !needsApiOverride();
   const { items, loading, error, refresh } = useItems(session?.access_token ?? null, query, apiConfigured);
@@ -496,6 +505,82 @@ export const DashboardPage = () => {
     setExpirationItem(item);
   };
 
+  const handleShare = async (item: Item) => {
+    try {
+      if (!token) throw new Error('Missing session.');
+      setShareItem(item);
+      setShareError(null);
+      if (item.share) {
+        const cachedShareLink = shareLinkCacheRef.current.get(item.id) ?? null;
+        setShareLink(cachedShareLink);
+        setShareDownloadCount(item.share.downloadCount);
+        if (cachedShareLink) {
+          setShareLoading(false);
+          return;
+        }
+
+        setShareLoading(true);
+        const payload = await fetchItemShare(token, item.id);
+        const shareUrl = `${window.location.origin}${payload.share.url}`;
+        shareLinkCacheRef.current.set(item.id, shareUrl);
+        setShareItem(payload.item);
+        setShareLink(shareUrl);
+        setShareDownloadCount(payload.share.downloadCount);
+        return;
+      }
+
+      setShareLink(null);
+      setShareDownloadCount(null);
+      setShareLoading(true);
+      shareRequestRef.current = item.id;
+
+      const payload = await createShare(token, item.id);
+      const shareUrl = `${window.location.origin}${payload.share.url}`;
+      shareLinkCacheRef.current.set(item.id, shareUrl);
+      setShareItem(payload.item);
+      setShareLink(shareUrl);
+      setShareDownloadCount(payload.share.downloadCount);
+      refresh();
+      showAction('Share link created.');
+    } catch (error) {
+      setShareError(error instanceof Error ? error.message : 'Share failed.');
+    } finally {
+      if (shareRequestRef.current === item.id) {
+        shareRequestRef.current = null;
+      }
+      setShareLoading(false);
+    }
+  };
+
+  const handleCopyShareLink = async () => {
+    if (!shareLink) return;
+
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      showAction('Share link copied.');
+    } catch (error) {
+      showAction(error instanceof Error ? error.message : 'Copy failed.');
+    }
+  };
+
+  const handleRevokeShare = async () => {
+    if (!token || !shareItem) return;
+
+    try {
+      await revokeShare(token, shareItem.id);
+      shareLinkCacheRef.current.delete(shareItem.id);
+      shareRequestRef.current = null;
+      setShareItem(null);
+      setShareLink(null);
+      setShareDownloadCount(null);
+      setShareError(null);
+      refresh();
+      showAction('Share revoked.');
+    } catch (error) {
+      setShareError(error instanceof Error ? error.message : 'Revoke failed.');
+    }
+  };
+
   const saveExpiration = async (itemId: string, expirationType: ExpirationType) => {
     if (!token) throw new Error('Missing session.');
     await updateExpirationItem(token, itemId, { expirationType });
@@ -713,6 +798,7 @@ export const DashboardPage = () => {
               onCopyText={handleCopy}
               onDelete={handleDelete}
               onDownload={handleDownload}
+              onShare={handleShare}
               onChangeExpiration={handleChangeExpiration}
             />
 
@@ -833,7 +919,7 @@ export const DashboardPage = () => {
               className={mobileQuickActionButtonClass}
               onClick={() => {
                 setMobileActionsOpen(false);
-                void handlePasteClipboard();
+                handleCreateText();
               }}
               disabled={!token}
             >
@@ -884,7 +970,7 @@ export const DashboardPage = () => {
               className={mobileQuickActionButtonClass}
               onClick={() => {
                 setMobileActionsOpen(false);
-                handleCreateText();
+                void handlePasteClipboard();
               }}
               disabled={!token}
             >
@@ -962,6 +1048,23 @@ export const DashboardPage = () => {
         item={expirationItem}
         onClose={() => setExpirationItem(null)}
         onSave={saveExpiration}
+      />
+      <ShareModal
+        open={Boolean(shareItem)}
+        item={shareItem}
+        shareUrl={shareLink}
+        downloadCount={shareDownloadCount}
+        loading={shareLoading}
+        error={shareError}
+        onClose={() => {
+          setShareItem(null);
+          setShareLink(null);
+          setShareDownloadCount(null);
+          setShareLoading(false);
+          setShareError(null);
+        }}
+        onCopyLink={handleCopyShareLink}
+        onRevoke={handleRevokeShare}
       />
 
       <input
