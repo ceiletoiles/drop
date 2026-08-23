@@ -154,14 +154,16 @@ export const RecentItemsList = ({
     </div>
   );
 
-  const infoEntries = infoItem
+  const infoSummary = infoItem
     ? [
-        { label: 'Type', value: getFileTypeLabel({ itemType: infoItem.type, filename: infoItem.file?.originalName, mimeType: infoItem.file?.mimeType }) },
-        infoItem.type === 'file' && infoItem.file ? { label: 'Size', value: formatFileSize(infoItem.file.size) } : null,
-        { label: 'Created', value: formatRelativeTime(infoItem.createdAt) },
-        { label: 'Expiration', value: getExpirationSummary(infoItem.expirationType, infoItem.expiresAt, infoItem.type) },
-        infoItem.share ? { label: 'Share', value: `Shared${infoItem.share.downloadCount > 0 ? ` · ${infoItem.share.downloadCount} downloads` : ''}` } : { label: 'Share', value: 'Not shared' }
-      ].filter((entry): entry is { label: string; value: string } => Boolean(entry))
+        getFileTypeLabel({ itemType: infoItem.type, filename: infoItem.file?.originalName, mimeType: infoItem.file?.mimeType }),
+        infoItem.type === 'file' && infoItem.file ? formatFileSize(infoItem.file.size) : null,
+        formatRelativeTime(infoItem.createdAt),
+        getExpirationSummary(infoItem.expirationType, infoItem.expiresAt, infoItem.type),
+        infoItem.share
+          ? `Shared${infoItem.share.downloadCount > 0 ? ` · ${infoItem.share.downloadCount} ${infoItem.type === 'text' ? 'copies' : 'downloads'}` : ''}`
+          : 'Not shared'
+      ].filter((value): value is string => Boolean(value))
     : [];
 
   const headerCopy = (
@@ -256,13 +258,13 @@ export const RecentItemsList = ({
           </p>
         </div>
       ) : (
-        <ul className="border-t border-slate-100">
+        <ul className="divide-y divide-slate-200 border-t border-slate-200">
           {items.map((item) => {
             const isText = item.type === 'text';
             const isMenuOpen = menuState?.itemId === item.id;
 
             return (
-              <li key={item.id} className="border-b border-slate-100 py-3">
+              <li key={item.id} className="relative py-3">
                 <div className="flex items-start gap-3 transition">
                   <button
                     type="button"
@@ -270,7 +272,7 @@ export const RecentItemsList = ({
                       if (isText) onEditText(item);
                       if (!isText) void onDownload(item);
                     }}
-                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                    className="flex min-w-0 flex-1 items-center gap-3 pr-40 text-left sm:pr-0"
                   >
                     <FileTypeIcon
                       itemType={item.type}
@@ -293,15 +295,18 @@ export const RecentItemsList = ({
                           <span className="shrink-0">{getExpirationSummary(item.expirationType, item.expiresAt, item.type)}</span>
                         </span>
                         {item.share ? (
-                          <span className="hidden shrink-0 font-medium text-emerald-600 sm:inline">
-                            {`Shared${item.share.downloadCount > 0 ? ` · ${item.share.downloadCount} downloads` : ''}`}
-                          </span>
+                          <>
+                            <span className="hidden h-1 w-1 shrink-0 rounded-full bg-slate-300 sm:inline-block" aria-hidden="true"></span>
+                            <span className="shrink-0 font-medium text-emerald-600">
+                              {`Shared${item.share.downloadCount > 0 ? ` · ${item.share.downloadCount} ${item.type === 'text' ? 'copies' : 'downloads'}` : ''}`}
+                            </span>
+                          </>
                         ) : null}
                       </p>
                     </div>
                   </button>
 
-                  <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
+                  <div className="absolute right-0 top-3 flex shrink-0 items-center justify-end gap-1.5 sm:static sm:gap-2.5">
                     {isText ? (
                       <Button
                         type="button"
@@ -456,20 +461,28 @@ export const RecentItemsList = ({
       >
         {infoItem ? (
           <div className="space-y-4">
-            <div className="rounded-[1.5rem] border border-slate-100 bg-slate-50 px-4 py-4">
-              <p className="text-sm font-semibold text-slate-950">{infoItem.title}</p>
-              <p className="mt-1 text-sm text-slate-500">
-                {getFileTypeLabel({ itemType: infoItem.type, filename: infoItem.file?.originalName, mimeType: infoItem.file?.mimeType })}
-              </p>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {infoEntries.map((entry) => (
-                <div key={entry.label} className="rounded-[1.25rem] border border-slate-100 bg-white px-4 py-3">
-                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">{entry.label}</p>
-                  <p className="mt-1 text-sm font-medium text-slate-950">{entry.value}</p>
+            <div className="rounded-[1.75rem] border border-slate-100 bg-[linear-gradient(180deg,_rgba(248,250,252,0.96),_rgba(255,255,255,0.96))] px-4 py-4 shadow-[0_1px_0_rgba(255,255,255,0.9)_inset]">
+              <div className="flex items-center gap-3">
+                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white text-slate-600 shadow-sm ring-1 ring-slate-100">
+                  <FileTypeIcon
+                    itemType={infoItem.type}
+                    filename={infoItem.file?.originalName}
+                    mimeType={infoItem.file?.mimeType}
+                    className="h-6 w-6"
+                  />
                 </div>
-              ))}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-base font-semibold text-slate-950">{infoItem.title}</p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {getFileTypeLabel({ itemType: infoItem.type, filename: infoItem.file?.originalName, mimeType: infoItem.file?.mimeType })}
+                  </p>
+                </div>
+              </div>
             </div>
+
+            <p className="rounded-[1.5rem] bg-slate-50 px-4 py-4 text-sm leading-7 text-slate-600">
+              {infoSummary.join(' · ')}
+            </p>
           </div>
         ) : null}
       </Modal>

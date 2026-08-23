@@ -55,6 +55,8 @@ export const SharePage = () => {
   const item = share?.item ?? null;
   const downloadUrl = useMemo(() => (token ? apiUrl(`/api/share/${token}/download`) : null), [token]);
   const isImage = item?.file ? getFileTypeKind({ filename: item.file.originalName, mimeType: item.file.mimeType }) === 'image' : false;
+  const shareMetricLabel = item?.type === 'text' ? 'copies' : 'downloads';
+  const emptyShareMetricLabel = item?.type === 'text' ? 'No copies yet' : 'No downloads yet';
 
   const showError = error ?? null;
 
@@ -90,6 +92,17 @@ export const SharePage = () => {
       setBusy(true);
       await navigator.clipboard.writeText(item.text.content);
       await copySharedText(token);
+      setShare((current) =>
+        current && current.item.type === 'text'
+          ? {
+              ...current,
+              share: {
+                ...current.share,
+                downloadCount: current.share.downloadCount + 1
+              }
+            }
+          : current
+      );
       setError(null);
       setMessage(item.expirationType === 'CONSUME' ? 'Copied. This Drop has been removed.' : 'Copied.');
       if (item.expirationType === 'CONSUME') {
@@ -147,7 +160,7 @@ export const SharePage = () => {
                       {getExpirationSummary(item.expirationType, item.expiresAt, item.type)}
                     </p>
                     <p className="mt-1 text-xs font-medium text-emerald-700">
-                      {share ? `${share.share.downloadCount} downloads` : 'No downloads yet'}
+                      {share ? `${share.share.downloadCount} ${shareMetricLabel}` : emptyShareMetricLabel}
                     </p>
                   </div>
                 </div>

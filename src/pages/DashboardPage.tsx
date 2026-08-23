@@ -531,12 +531,28 @@ export const DashboardPage = () => {
 
       setShareLink(null);
       setShareDownloadCount(null);
-      setShareLoading(true);
-      shareRequestRef.current = item.id;
+      setShareLoading(false);
+    } catch (error) {
+      setShareError(error instanceof Error ? error.message : 'Share failed.');
+    } finally {
+      if (shareRequestRef.current === item.id) {
+        shareRequestRef.current = null;
+      }
+      setShareLoading(false);
+    }
+  };
 
-      const payload = await createShare(token, item.id);
+  const handleCreateShareLink = async () => {
+    if (!token || !shareItem) return;
+
+    try {
+      setShareError(null);
+      setShareLoading(true);
+      shareRequestRef.current = shareItem.id;
+
+      const payload = await createShare(token, shareItem.id);
       const shareUrl = `${window.location.origin}${payload.share.url}`;
-      shareLinkCacheRef.current.set(item.id, shareUrl);
+      shareLinkCacheRef.current.set(shareItem.id, shareUrl);
       setShareItem(payload.item);
       setShareLink(shareUrl);
       setShareDownloadCount(payload.share.downloadCount);
@@ -545,7 +561,7 @@ export const DashboardPage = () => {
     } catch (error) {
       setShareError(error instanceof Error ? error.message : 'Share failed.');
     } finally {
-      if (shareRequestRef.current === item.id) {
+      if (shareRequestRef.current === shareItem.id) {
         shareRequestRef.current = null;
       }
       setShareLoading(false);
@@ -1063,6 +1079,7 @@ export const DashboardPage = () => {
           setShareLoading(false);
           setShareError(null);
         }}
+        onCreateLink={handleCreateShareLink}
         onCopyLink={handleCopyShareLink}
         onRevoke={handleRevokeShare}
       />

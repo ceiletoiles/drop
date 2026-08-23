@@ -760,8 +760,14 @@ export const downloadSharedItemFile = async (env: Env, shareToken: string) => {
 
 export const copySharedItemText = async (env: Env, shareToken: string) => {
   const db = createDb(env);
-  const { item, textRow } = await getSharedItemWithRelations(db, shareToken);
+  const { share, item, textRow } = await getSharedItemWithRelations(db, shareToken);
   if (item.type !== 'text' || !textRow) throw new Error('This shared Drop is no longer available.');
+
+  const { error: updateError } = await db
+    .from('shares')
+    .update({ download_count: share.download_count + 1 })
+    .eq('id', share.id);
+  if (updateError) throw updateError;
 
   if (item.expiration_type === 'CONSUME') {
     const { error: deleteError } = await db.from('items').delete().eq('id', item.id).eq('user_id', item.user_id);

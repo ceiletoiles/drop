@@ -14,6 +14,7 @@ interface ShareModalProps {
   loading: boolean;
   error: string | null;
   onClose: () => void;
+  onCreateLink: () => void;
   onCopyLink: () => void;
   onRevoke: () => void;
 }
@@ -26,11 +27,13 @@ export const ShareModal = ({
   loading,
   error,
   onClose,
+  onCreateLink,
   onCopyLink,
   onRevoke
 }: ShareModalProps) => {
   const hasActiveShare = Boolean(item?.share);
   const hasShareUrl = Boolean(shareUrl);
+  const shareMetricLabel = item?.type === 'text' ? 'copies' : 'downloads';
 
   return (
     <Modal
@@ -62,7 +65,11 @@ export const ShareModal = ({
                 {getExpirationSummary(item.expirationType, item.expiresAt, item.type)}
               </p>
               <p className="mt-1 text-xs font-medium text-emerald-700">
-                {downloadCount !== null ? `${downloadCount} downloads` : item.share ? `${item.share.downloadCount} downloads` : 'No downloads yet'}
+                {downloadCount !== null
+                  ? `${downloadCount} ${shareMetricLabel}`
+                  : item.share
+                    ? `${item.share.downloadCount} ${shareMetricLabel}`
+                    : `No ${shareMetricLabel} yet`}
               </p>
             </div>
           </div>
@@ -100,8 +107,11 @@ export const ShareModal = ({
               </Button>
             </div>
           ) : (
-            <div className="rounded-[1.5rem] border border-slate-100 bg-white px-4 py-4 text-sm text-slate-500">
-              No active share link yet.
+            <div className="space-y-3 rounded-[1.5rem] border border-slate-100 bg-white px-4 py-4 text-sm text-slate-500">
+              <p>No active share link yet.</p>
+              <Button type="button" variant="primary" onClick={onCreateLink} className="w-full justify-center sm:w-auto">
+                Create link
+              </Button>
             </div>
           )}
         </div>
