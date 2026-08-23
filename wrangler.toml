@@ -8,4 +8,4 @@ binding = "R2_BUCKET"
 bucket_name = "drop-files"
 
 [triggers]
-crons = ["*/15 * * * *"]
+crons = ["0 0 * * *"]

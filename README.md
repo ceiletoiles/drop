@@ -12,6 +12,18 @@ Drop is a lightweight cross-device transfer and scratchpad app built for fast ca
 - Server-side ownership checks for all item operations
 - Responsive UI for mobile and desktop
 
+## What is in V0.2
+
+- Drag-and-drop uploads on the main drop zone
+- Multi-file uploads from drag/drop and the file picker
+- Clipboard support for pasted text, pasted images, and pasted files when the browser exposes them
+- Per-file upload progress, success, failure, and cancel states
+- Quick text creation from pasted clipboard text before saving
+- Search across filenames and text content with type filtering for text, files, and images
+- Keyboard shortcuts for upload, new text, search focus, and escape/close behavior
+- Mobile upload actions tuned for quick add-and-go workflows
+- Recent-items cards with lightweight metadata and cleaner action access
+
 ## What is in V0.3
 
 - Temporary items with no permanent storage option
@@ -136,7 +148,7 @@ The Worker lives in `worker/src/index.ts` and handles:
 - consume-after-copy / consume-after-download
 - scheduled cleanup of expired records and queued R2 deletions
 
-Cron cleanup is configured in `wrangler.toml` with a 15-minute trigger.
+Cron cleanup is configured in `wrangler.toml` with a daily trigger at 00:00 UTC.
 
 ## V0.3 behavior
 
