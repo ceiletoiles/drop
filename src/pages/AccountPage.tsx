@@ -32,6 +32,7 @@ export const AccountPage = () => {
   const [spaceInvitations, setSpaceInvitations] = useState<Awaited<ReturnType<typeof fetchMySpaceInvitations>>['invitations']>([]);
   const [spaceInvitationsLoading, setSpaceInvitationsLoading] = useState(false);
   const [spaceInvitationsError, setSpaceInvitationsError] = useState<string | null>(null);
+  const [profileImageError, setProfileImageError] = useState(false);
 
   const displayName =
     user?.user_metadata?.full_name ??
@@ -39,6 +40,12 @@ export const AccountPage = () => {
     user?.email?.split('@')[0] ??
     'Your account';
   const email = user?.email ?? 'No email available';
+  const profileImage =
+    typeof user?.user_metadata?.picture === 'string'
+      ? user.user_metadata.picture
+      : typeof user?.user_metadata?.avatar_url === 'string'
+        ? user.user_metadata.avatar_url
+        : null;
   const memberSince = user?.created_at
     ? new Intl.DateTimeFormat('en-US', {
         month: 'long',
@@ -246,8 +253,18 @@ export const AccountPage = () => {
               <div className="min-w-0">
                 <p className="text-sm font-medium tracking-normal text-slate-700">Profile</p>
                 <div className="mt-2 flex items-center gap-3 sm:gap-4">
-                  <div className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-gradient-to-br from-indigo-500 via-violet-500 to-sky-500 text-base font-semibold text-white shadow-[0_18px_40px_rgba(99,102,241,0.24)] sm:h-16 sm:w-16 sm:text-lg">
-                    {getInitials(email)}
+                  <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-indigo-500 via-violet-500 to-sky-500 text-base font-semibold text-white shadow-[0_18px_40px_rgba(99,102,241,0.24)] sm:h-16 sm:w-16 sm:text-lg">
+                    {profileImage && !profileImageError ? (
+                      <img
+                        src={profileImage}
+                        alt=""
+                        className="h-full w-full object-cover"
+                        referrerPolicy="no-referrer"
+                        onError={() => setProfileImageError(true)}
+                      />
+                    ) : (
+                      getInitials(email)
+                    )}
                   </div>
 
                   <div className="min-w-0">

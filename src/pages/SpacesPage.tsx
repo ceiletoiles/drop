@@ -9,7 +9,6 @@ import { GridIcon, HomeIcon, PlusIcon } from '../components/ui/Icon';
 import { useAuth } from '../features/auth/auth-context';
 import { createSpace, fetchSpaces } from '../features/spaces/spaces-api';
 import type { SpaceSummary } from '../../shared/types';
-import { getInitials } from '../lib/format';
 
 export const SpacesPage = () => {
   const { session, user, loading: authLoading } = useAuth();
@@ -75,22 +74,31 @@ export const SpacesPage = () => {
   return (
     <AppShell>
       <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] w-full max-w-6xl flex-col gap-6 pt-1 sm:pt-2">
-        <header className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Version 5</p>
-            <h1 className="mt-2 text-[20px] font-semibold tracking-tight text-slate-950 sm:text-[1.9rem]">Spaces</h1>
-            <p className="mt-1 max-w-2xl text-[13px] leading-5 text-slate-500">
+        <header className="relative flex items-start justify-center gap-4 pt-1 sm:pt-2">
+          <div className="absolute left-0 top-0 sm:top-1">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => navigate('/')}
+              className="h-12 w-12 shrink-0 rounded-full p-0"
+              aria-label="Back to drop"
+            >
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+            </Button>
+          </div>
+
+          <div className="min-w-0 max-w-2xl px-16 text-center sm:px-24">
+            <h1 className="text-[20px] font-semibold tracking-tight text-slate-950 sm:text-[1.9rem]">Spaces</h1>
+            <p className="mt-1 text-[13px] leading-5 text-slate-500">
               Shared temporary areas for teams, friends, and quick project drops.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <Button type="button" variant="secondary" onClick={() => navigate('/')}>
-              <HomeIcon />
-              Back to drop
-            </Button>
-            <Button type="button" onClick={() => setCreateOpen(true)}>
-              <PlusIcon />
+          <div className="absolute right-0 top-0 hidden sm:top-1 md:block">
+            <Button type="button" variant="secondary" onClick={() => setCreateOpen(true)}>
+              <PlusIcon className="h-4 w-4" />
               Create Space
             </Button>
           </div>
@@ -113,40 +121,40 @@ export const SpacesPage = () => {
                 <p className="mt-1 max-w-xl text-sm leading-6 text-slate-500">
                   Create a Space to share files, notes, and temporary items with a small group.
                 </p>
-                <Button type="button" className="mt-4" onClick={() => setCreateOpen(true)}>
-                  <PlusIcon />
-                  Create Space
-                </Button>
               </div>
             </div>
           </section>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {spaces.map((space) => (
-              <button
-                key={space.id}
-                type="button"
-                onClick={() => navigate(`/spaces/${space.id}`)}
-                className="text-left"
-              >
-                <article className="h-full rounded-[2rem] border border-slate-200/80 bg-white/80 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_28px_80px_rgba(15,23,42,0.1)]">
-                  <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1.5">
+            <div className="md:hidden">
+              <Button type="button" variant="secondary" onClick={() => setCreateOpen(true)} className="w-full">
+                <PlusIcon className="h-4 w-4" />
+                Create Space
+              </Button>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {spaces.map((space) => (
+                <button
+                  key={space.id}
+                  type="button"
+                  onClick={() => navigate(`/spaces/${space.id}`)}
+                  className="text-left"
+                >
+                  <article className="h-full rounded-[2rem] border border-slate-200/80 bg-white/80 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_28px_80px_rgba(15,23,42,0.1)]">
                     <div className="min-w-0">
                       <p className="truncate text-lg font-semibold tracking-tight text-slate-950">{space.name}</p>
                       <p className="mt-1 text-sm text-slate-500">{space.memberCount} members</p>
                     </div>
-                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-indigo-500 to-sky-500 text-sm font-semibold text-white">
-                      {getInitials(space.ownerName)}
-                    </div>
-                  </div>
 
-                  <div className="mt-5 flex items-center gap-3 text-sm text-slate-600">
-                    <span className="rounded-full bg-slate-100 px-3 py-1.5">{space.itemCount} items</span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1.5">Owner: {space.ownerName}</span>
-                  </div>
-                </article>
-              </button>
-            ))}
+                    <div className="mt-5 flex items-center gap-3 text-sm text-slate-600">
+                      <span className="rounded-full bg-slate-100 px-3 py-1.5">{space.itemCount} items</span>
+                      <span className="rounded-full bg-slate-100 px-3 py-1.5">Owner: {space.ownerName}</span>
+                    </div>
+                  </article>
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>

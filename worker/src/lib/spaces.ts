@@ -120,12 +120,24 @@ const toSpaceSummary = (row: SpaceRow, memberCount = 0, itemCount = 0): SpaceSum
   itemCount
 });
 
-const toMemberSummary = (row: SpaceMemberRow): SpaceMemberSummary => ({
-  userId: row.user_id,
-  displayName: row.display_name,
-  role: row.role,
-  joinedAt: row.joined_at
-});
+const toMemberSummary = async (db: SupabaseClient, row: SpaceMemberRow): Promise<SpaceMemberSummary> => {
+  const { data } = await db.auth.admin.getUserById(row.user_id);
+  const metadata = data.user?.user_metadata;
+  const profilePicture =
+    typeof metadata?.picture === 'string'
+      ? metadata.picture
+      : typeof metadata?.avatar_url === 'string'
+        ? metadata.avatar_url
+        : null;
+
+  return {
+    userId: row.user_id,
+    displayName: row.display_name,
+    profilePicture,
+    role: row.role,
+    joinedAt: row.joined_at
+  };
+};
 
 const toInvitationSummary = (row: SpaceInvitationRow, token?: string): SpaceInvitationSummary => ({
   id: row.id,
@@ -350,7 +362,7 @@ export const getSpace = async (env: Env, userId: string, spaceId: string): Promi
 
   return {
     space: toSpaceSummary(space, (memberRows ?? []).length, itemSummaries.length),
-    members: (memberRows ?? []).map((row) => toMemberSummary(row as SpaceMemberRow)),
+    members: await Promise.all((memberRows ?? []).map((row) => toMemberSummary(db, row as SpaceMemberRow))),
     items: itemSummaries,
     invite: inviteRow ? toInvitationSummary(inviteRow) : null
   };

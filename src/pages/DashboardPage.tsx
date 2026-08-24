@@ -37,15 +37,16 @@ import { DEFAULT_EXPIRATION_TYPE } from '../../shared/constants';
 import type { ExpirationType } from '../../shared/types';
 
 type ViewFilter = 'home' | 'all' | 'text' | 'files' | 'images' | 'search';
+type SidebarNavKey = ViewFilter | 'spaces';
 
 const navItems: Array<{
-  key: ViewFilter | 'search';
+  key: SidebarNavKey;
   label: string;
   icon: typeof HomeIcon;
   hint?: string;
 }> = [
   { key: 'home', label: 'Home', icon: HomeIcon },
-  { key: 'all', label: 'All items', icon: ListIcon },
+  { key: 'spaces', label: 'Spaces', icon: GridIcon },
   { key: 'text', label: 'Text notes', icon: TextIcon },
   { key: 'files', label: 'Files', icon: FileIcon },
   { key: 'images', label: 'Images', icon: ImageIcon },
@@ -53,12 +54,12 @@ const navItems: Array<{
 ];
 
 const mobileNavItems: Array<{
-  key: ViewFilter | 'search' | 'account';
+  key: ViewFilter | 'search' | 'account' | 'spaces';
   label: string;
   icon: typeof HomeIcon;
 }> = [
   { key: 'home', label: 'Home', icon: HomeIcon },
-  { key: 'all', label: 'All', icon: ListIcon },
+  { key: 'spaces', label: 'Spaces', icon: GridIcon },
   { key: 'all', label: 'Add', icon: PlusIcon },
   { key: 'search', label: 'Search', icon: SearchIcon },
   { key: 'account', label: 'Account', icon: UserIcon }
@@ -110,7 +111,7 @@ export const DashboardPage = () => {
   const shareRequestRef = useRef<string | null>(null);
   const clipboardPasteHandlerRef = useRef<(event: ClipboardEvent) => void>(() => undefined);
   const apiConfigured = !needsApiOverride();
-  const { items, loading, error, refresh } = useItems(session?.access_token ?? null, query, apiConfigured);
+  const { items, loading, error, refresh } = useItems(session?.access_token ?? null, '', apiConfigured);
 
   const token = session?.access_token ?? '';
   const uploadBusy = uploadItems.some((item) => item.status === 'queued' || item.status === 'uploading');
@@ -126,6 +127,12 @@ export const DashboardPage = () => {
       .map((part: string) => capitalize(part))
       .join(' ');
   }, [user?.email, user?.user_metadata?.full_name, user?.user_metadata?.name]);
+  const profileImage =
+    typeof user?.user_metadata?.picture === 'string'
+      ? user.user_metadata.picture
+      : typeof user?.user_metadata?.avatar_url === 'string'
+        ? user.user_metadata.avatar_url
+        : null;
 
   const showAction = useCallback((message: string) => {
     setActionMessage(message);
@@ -229,7 +236,15 @@ export const DashboardPage = () => {
   }, []);
 
   const filteredItems = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
     const list = [...items].filter((item) => {
+      if (normalizedQuery) {
+        const title = item.title.toLowerCase();
+        const content = item.text?.content.toLowerCase() ?? '';
+        const filename = item.file?.originalName.toLowerCase() ?? '';
+        if (!title.includes(normalizedQuery) && !content.includes(normalizedQuery) && !filename.includes(normalizedQuery)) return false;
+      }
+
       if (activeFilter === 'home' || activeFilter === 'all') return true;
       if (activeFilter === 'text') return item.type === 'text';
       const fileType = item.type === 'file'
@@ -246,7 +261,7 @@ export const DashboardPage = () => {
     });
 
     return list;
-  }, [activeFilter, items, sortOrder]);
+  }, [activeFilter, items, query, sortOrder]);
 
   if (!authLoading && !session) return <Navigate to="/login" replace />;
 
@@ -484,10 +499,16 @@ export const DashboardPage = () => {
     void handleClipboardPaste(event);
   };
 
-  const navAction = (key: ViewFilter | 'search' | 'account') => {
+  const navAction = (key: SidebarNavKey | 'account') => {
     if (key === 'search') {
       setActiveFilter('search');
       setMobileActionsOpen(false);
+      return;
+    }
+    if (key === 'spaces') {
+      setDrawerOpen(false);
+      setMobileActionsOpen(false);
+      navigate('/spaces');
       return;
     }
     if (key === 'account') {
@@ -619,7 +640,7 @@ export const DashboardPage = () => {
 
             <nav className="mt-6 space-y-1.5">
               {navItems.map(({ key, label, icon: Icon }) => {
-                const active = activeFilter === key;
+                const active = key !== 'spaces' && activeFilter === key;
                 return (
                   <button
                     key={key}
@@ -640,21 +661,6 @@ export const DashboardPage = () => {
                 );
               })}
             </nav>
-
-            <div className="mt-6 rounded-[1.5rem] border border-slate-200/80 bg-white/80 p-3 shadow-[0_16px_40px_rgba(15,23,42,0.05)]">
-              <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Spaces</p>
-              <button
-                type="button"
-                onClick={() => navigate('/spaces')}
-                className="mt-2 flex w-full items-center gap-2.5 rounded-2xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-              >
-                <span className="grid h-8 w-8 place-items-center rounded-xl bg-slate-100 text-slate-600">
-                  <GridIcon />
-                </span>
-                <span className="flex-1">Spaces</span>
-              </button>
-            </div>
-
           </div>
         </aside>
 
@@ -685,8 +691,8 @@ export const DashboardPage = () => {
                     aria-haspopup="menu"
                     aria-expanded={accountMenuOpen}
                   >
-                    <div className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 text-xs font-semibold text-white">
-                      {getInitials(user?.email ?? displayName)}
+                    <div className="grid h-8 w-8 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 text-xs font-semibold text-white">
+                      {profileImage ? <img src={profileImage} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" /> : getInitials(user?.email ?? displayName)}
                     </div>
                     <div className="min-w-0">
                       <p className="max-w-28 truncate text-sm font-medium text-slate-950">{displayName}</p>
@@ -898,23 +904,6 @@ export const DashboardPage = () => {
               })}
           </nav>
 
-          <div className="mt-6 rounded-[1.5rem] border border-slate-200/80 bg-white/80 p-3 shadow-[0_16px_40px_rgba(15,23,42,0.05)]">
-            <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Spaces</p>
-            <button
-              type="button"
-              onClick={() => {
-                setDrawerOpen(false);
-                navigate('/spaces');
-              }}
-              className="mt-2 flex w-full items-center gap-2.5 rounded-2xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-            >
-              <span className="grid h-8 w-8 place-items-center rounded-xl bg-slate-100 text-slate-600">
-                <GridIcon />
-              </span>
-              <span className="flex-1">Spaces</span>
-            </button>
-          </div>
-
           <div className="mt-8 rounded-[1.75rem] border border-slate-200 bg-[linear-gradient(180deg,_rgba(248,250,252,0.96),_rgba(236,240,255,0.92))] p-4">
             <div className="flex items-center gap-3">
               <div className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 text-sm font-semibold text-white">
@@ -1038,7 +1027,7 @@ export const DashboardPage = () => {
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200/80 bg-white/95 px-3 py-2 shadow-[0_-10px_40px_rgba(15,23,42,0.08)] backdrop-blur xl:hidden">
         <div className="mx-auto grid max-w-xl grid-cols-5 items-end gap-2">
           {mobileNavItems.map(({ key, label, icon: Icon }) => {
-            const active = activeFilter === key;
+            const active = key !== 'spaces' && activeFilter === key;
             const isAdd = label === 'Add';
             return (
               <button

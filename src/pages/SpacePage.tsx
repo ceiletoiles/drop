@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { Spinner } from '../components/ui/Spinner';
-import { HomeIcon, ImageIcon, GridIcon, LogOutIcon, PlusIcon, UploadIcon } from '../components/ui/Icon';
+import { LogOutIcon, PlusIcon, UploadIcon } from '../components/ui/Icon';
 import { useAuth } from '../features/auth/auth-context';
 import { UploadDropzone, type UploadItemState } from '../features/items/UploadDropzone';
 import { RecentItemsList } from '../features/items/RecentItemsList';
@@ -20,7 +20,6 @@ import {
   deleteSpaceItem,
   downloadSpaceItem,
   fetchSpace,
-  joinSpaceInvite,
   leaveSpace,
   removeSpaceMember,
   revokeSpaceInvitation,
@@ -29,14 +28,12 @@ import {
   uploadSpaceFile
 } from '../features/spaces/spaces-api';
 import type { SpaceDetailResponse } from '../../shared/types';
-import { getFileTypeKind } from '../lib/file';
-import { formatFileSize, getInitials } from '../lib/format';
-import { clsx } from 'clsx';
-import { DEFAULT_EXPIRATION_TYPE, SPACE_EXPIRATION_TYPES } from '../../shared/constants';
+import { getInitials } from '../lib/format';
+import { SPACE_EXPIRATION_TYPES } from '../../shared/constants';
 
 type SpaceTextDraft = { title: string; content: string } | null;
 
-const spaceExpirationOptions: Array<(typeof SPACE_EXPIRATION_TYPES)[number]> = ['24_HOURS', '7_DAYS', '1_MONTH'];
+const spacePageCache = new Map<string, SpaceDetailResponse>();
 
 export const SpacePage = () => {
   const { session, user, loading: authLoading } = useAuth();
@@ -47,12 +44,14 @@ export const SpacePage = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const uploadControllersRef = useRef(new Map<string, AbortController>());
+  const cacheKey = user?.id && spaceId ? `${user.id}:${spaceId}` : '';
+  const cachedPayload = cacheKey ? spacePageCache.get(cacheKey) : undefined;
 
-  const [space, setSpace] = useState<SpaceDetailResponse['space'] | null>(null);
-  const [members, setMembers] = useState<SpaceDetailResponse['members']>([]);
-  const [items, setItems] = useState<Item[]>([]);
-  const [invite, setInvite] = useState<SpaceDetailResponse['invite'] | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [space, setSpace] = useState<SpaceDetailResponse['space'] | null>(cachedPayload?.space ?? null);
+  const [members, setMembers] = useState<SpaceDetailResponse['members']>(cachedPayload?.members ?? []);
+  const [items, setItems] = useState<Item[]>(cachedPayload?.items ?? []);
+  const [invite, setInvite] = useState<SpaceDetailResponse['invite'] | null>(cachedPayload?.invite ?? null);
+  const [loading, setLoading] = useState(!cachedPayload);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
@@ -66,6 +65,9 @@ export const SpacePage = () => {
   const [inviteBusy, setInviteBusy] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
+  const [mobilePanel, setMobilePanel] = useState<'invite' | 'members'>('invite');
 
   const uploadBusy = uploadItems.some((item) => item.status === 'queued' || item.status === 'uploading');
   const uploadStatus = uploadItems.length
@@ -94,6 +96,7 @@ export const SpacePage = () => {
   const refresh = async () => {
     if (!token || !spaceId) return;
     const payload = await fetchSpace(token, spaceId);
+    spacePageCache.set(cacheKey, payload);
     setSpace(payload.space);
     setMembers(payload.members);
     setItems(payload.items);
@@ -107,12 +110,13 @@ export const SpacePage = () => {
     }
 
     const controller = new AbortController();
-    setLoading(true);
+    setLoading(!spacePageCache.has(`${user?.id ?? ''}:${spaceId}`));
     setError(null);
 
     fetchSpace(token, spaceId)
       .then((payload) => {
         if (controller.signal.aborted) return;
+        spacePageCache.set(`${user?.id ?? ''}:${spaceId}`, payload);
         setSpace(payload.space);
         setMembers(payload.members);
         setItems(payload.items);
@@ -126,9 +130,7 @@ export const SpacePage = () => {
       });
 
     return () => controller.abort();
-  }, [spaceId, token]);
-
-  if (!authLoading && !session) return <Navigate to="/login" replace />;
+  }, [spaceId, token, user?.id]);
 
   const addUploadItem = (file: File): string => {
     const id = crypto.randomUUID();
@@ -284,6 +286,8 @@ export const SpacePage = () => {
     return list;
   }, [items, query, sortOrder]);
 
+  if (!authLoading && !session) return <Navigate to="/login" replace />;
+
   const handleSendEmailInvite = async () => {
     if (!token || !spaceId) return;
     const email = inviteEmail.trim();
@@ -369,15 +373,79 @@ export const SpacePage = () => {
     }
   };
 
+  const inviteSection = isOwner ? (
+    <section className="rounded-[2rem] border border-slate-200/80 bg-white/80 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Invite</p>
+      <div className="mt-3 space-y-3">
+        <Input value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="name@example.com" />
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Button type="button" onClick={() => void handleSendEmailInvite()} disabled={inviteBusy || !inviteEmail.trim()}>
+            {inviteBusy ? <Spinner /> : 'Send email invite'}
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => void handleCreateInviteLink()} disabled={inviteBusy}>
+            Create invite link
+          </Button>
+        </div>
+        {activeInviteUrl ? (
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
+            <p className="font-medium text-slate-950">Active invite link</p>
+            <p className="mt-1 break-all">{activeInviteUrl}</p>
+          </div>
+        ) : (
+          <p className="text-xs leading-5 text-slate-500">Create a link invite once, then reuse the same join URL until it expires or is revoked.</p>
+        )}
+        {invite ? (
+          <Button type="button" variant="secondary" onClick={() => void handleRevokeInviteLink()} disabled={inviteBusy}>
+            Revoke invite link
+          </Button>
+        ) : null}
+      </div>
+    </section>
+  ) : null;
+
+  const membersSection = (
+    <section className="rounded-[2rem] border border-slate-200/80 bg-white/80 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Members</p>
+      <div className="mt-3 space-y-3">
+        {members.map((member) => (
+          <div key={member.userId} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-indigo-500 to-sky-500 text-xs font-semibold text-white">
+                {member.profilePicture ? <img src={member.profilePicture} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" /> : getInitials(member.displayName)}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-slate-950">{member.displayName}</p>
+                <p className="text-xs text-slate-500">{member.role === 'owner' ? 'Owner' : 'Member'}</p>
+              </div>
+            </div>
+            {isOwner && member.role !== 'owner' ? (
+              <button type="button" className="text-sm font-medium text-rose-600" onClick={() => void handleRemoveMember(member.userId)}>
+                Remove
+              </button>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+
   return (
     <AppShell>
       <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] w-full max-w-6xl flex-col gap-6 pt-1 sm:pt-2">
-        <header className="flex flex-wrap items-start justify-between gap-4">
+        <header className="relative flex flex-wrap items-start justify-between gap-4 md:flex-nowrap md:items-center">
           <div className="min-w-0">
             <div className="flex items-center gap-3">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[linear-gradient(135deg,_rgba(99,102,241,0.12),_rgba(14,165,233,0.12))] text-indigo-600">
-                <GridIcon />
-              </span>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => navigate('/spaces')}
+                className="h-14 w-14 shrink-0 rounded-full p-0"
+                aria-label="Back to spaces"
+              >
+                <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="m15 18-6-6 6-6" />
+                </svg>
+              </Button>
               <div className="min-w-0">
                 <h1 className="truncate text-[20px] font-semibold tracking-tight text-slate-950 sm:text-[1.9rem]">{space?.name ?? 'Space'}</h1>
                 <p className="mt-1 text-[13px] leading-5 text-slate-500">{memberCount} members</p>
@@ -385,29 +453,72 @@ export const SpacePage = () => {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <Button type="button" variant="secondary" onClick={() => navigate('/spaces')}>
-              <HomeIcon />
-              Spaces
-            </Button>
-            <Button type="button" variant="secondary" onClick={() => handleFileBrowse('', fileInputRef)} disabled={!token || uploadBusy}>
+          <div className="flex w-full flex-nowrap items-center gap-1 sm:w-auto sm:gap-3 md:ml-auto">
+            <Button type="button" variant="secondary" className="h-10 min-w-0 flex-1 px-2 text-xs sm:flex-none sm:px-4 sm:text-sm" onClick={() => handleFileBrowse('', fileInputRef)} disabled={!token || uploadBusy}>
               <UploadIcon />
               Upload
             </Button>
-            <Button type="button" onClick={handleCreateText} disabled={!token}>
+            <Button type="button" variant="secondary" className="h-10 min-w-0 flex-1 px-2 text-xs sm:flex-none sm:px-4 sm:text-sm" onClick={handleCreateText} disabled={!token}>
               <PlusIcon />
               New note
             </Button>
             {isOwner ? (
-              <Button type="button" variant="danger" onClick={() => void handleDeleteSpace()} disabled={busy}>
+              <Button type="button" variant="secondary" className="h-10 min-w-0 flex-1 px-2 text-xs sm:flex-none sm:px-4 sm:text-sm" onClick={() => void handleDeleteSpace()} disabled={busy}>
                 Delete Space
               </Button>
             ) : (
-              <Button type="button" variant="secondary" onClick={() => void handleLeave()} disabled={busy}>
+              <Button type="button" variant="secondary" className="h-10 min-w-0 flex-1 px-2 text-xs sm:flex-none sm:px-4 sm:text-sm" onClick={() => void handleLeave()} disabled={busy}>
                 <LogOutIcon />
                 Leave
               </Button>
             )}
+          </div>
+
+          <div className="absolute right-0 top-0 md:hidden">
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-14 w-14 shrink-0 rounded-full p-0"
+              aria-label="Space options"
+              aria-expanded={mobileMenuOpen}
+              onClick={() => setMobileMenuOpen((current) => !current)}
+            >
+              <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="5" r="1.45" fill="currentColor" stroke="none" />
+                <circle cx="12" cy="12" r="1.45" fill="currentColor" stroke="none" />
+                <circle cx="12" cy="19" r="1.45" fill="currentColor" stroke="none" />
+              </svg>
+            </Button>
+            {mobileMenuOpen ? (
+              <div className="absolute right-0 top-full z-20 mt-2 w-48 rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_18px_45px_rgba(15,23,42,0.16)]" role="menu">
+                {isOwner ? (
+                  <button
+                    type="button"
+                    className="flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 hover:bg-slate-100"
+                    role="menuitem"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      setMobilePanel('invite');
+                      setMobilePanelOpen(true);
+                    }}
+                  >
+                    Invite
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 hover:bg-slate-100"
+                  role="menuitem"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setMobilePanel('members');
+                    setMobilePanelOpen(true);
+                  }}
+                >
+                  Members
+                </button>
+              </div>
+            ) : null}
           </div>
         </header>
 
@@ -452,59 +563,10 @@ export const SpacePage = () => {
             </div>
 
             <aside className="space-y-4">
-              {isOwner ? (
-                <section className="rounded-[2rem] border border-slate-200/80 bg-white/80 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Invite</p>
-                  <div className="mt-3 space-y-3">
-                    <Input value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="name@example.com" />
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <Button type="button" onClick={() => void handleSendEmailInvite()} disabled={inviteBusy || !inviteEmail.trim()}>
-                        {inviteBusy ? <Spinner /> : 'Send email invite'}
-                      </Button>
-                      <Button type="button" variant="secondary" onClick={() => void handleCreateInviteLink()} disabled={inviteBusy}>
-                        Create invite link
-                      </Button>
-                    </div>
-                    {activeInviteUrl ? (
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
-                        <p className="font-medium text-slate-950">Active invite link</p>
-                        <p className="mt-1 break-all">{activeInviteUrl}</p>
-                      </div>
-                    ) : (
-                      <p className="text-xs leading-5 text-slate-500">Create a link invite once, then reuse the same join URL until it expires or is revoked.</p>
-                    )}
-                    {invite ? (
-                      <Button type="button" variant="secondary" onClick={() => void handleRevokeInviteLink()} disabled={inviteBusy}>
-                        Revoke invite link
-                      </Button>
-                    ) : null}
-                  </div>
-                </section>
-              ) : null}
-
-              <section className="rounded-[2rem] border border-slate-200/80 bg-white/80 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Members</p>
-                <div className="mt-3 space-y-3">
-                  {members.map((member) => (
-                    <div key={member.userId} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-indigo-500 to-sky-500 text-xs font-semibold text-white">
-                          {getInitials(member.displayName)}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-slate-950">{member.displayName}</p>
-                          <p className="text-xs text-slate-500">{member.role === 'owner' ? 'Owner' : 'Member'}</p>
-                        </div>
-                      </div>
-                      {isOwner && member.role !== 'owner' ? (
-                        <button type="button" className="text-sm font-medium text-rose-600" onClick={() => void handleRemoveMember(member.userId)}>
-                          Remove
-                        </button>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              </section>
+              <div className="hidden md:block space-y-4">
+                {inviteSection}
+                {membersSection}
+              </div>
             </aside>
           </div>
         )}
@@ -549,6 +611,14 @@ export const SpacePage = () => {
         }}
         allowConsume={false}
       />
+
+      <Modal
+        title={mobilePanel === 'invite' ? 'Invite' : 'Members'}
+        open={mobilePanelOpen}
+        onClose={() => setMobilePanelOpen(false)}
+      >
+        {mobilePanel === 'invite' && isOwner ? inviteSection : membersSection}
+      </Modal>
     </AppShell>
   );
 };

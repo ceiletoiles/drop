@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import type { Item } from './types';
 import { fetchItems } from './items-api';
 
+const itemsCache = new Map<string, Item[]>();
+
 interface UseItemsResult {
   items: Item[];
   loading: boolean;
@@ -10,8 +12,9 @@ interface UseItemsResult {
 }
 
 export const useItems = (token: string | null, query: string, enabled = true): UseItemsResult => {
-  const [items, setItems] = useState<Item[]>([]);
-  const [loading, setLoading] = useState(true);
+  const initialCacheKey = token ? `${token}:${query}` : '';
+  const [items, setItems] = useState<Item[]>(initialCacheKey ? itemsCache.get(initialCacheKey) ?? [] : []);
+  const [loading, setLoading] = useState(!initialCacheKey || !itemsCache.has(initialCacheKey));
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [debouncedQuery, setDebouncedQuery] = useState(query);
@@ -29,12 +32,18 @@ export const useItems = (token: string | null, query: string, enabled = true): U
     }
 
     const controller = new AbortController();
-    setLoading(true);
+    const cacheKey = `${token}:${debouncedQuery}`;
+    const cachedItems = itemsCache.get(cacheKey);
+    if (cachedItems) {
+      setItems(cachedItems);
+      setLoading(false);
+    }
     setError(null);
 
     fetchItems(token, debouncedQuery)
       .then((response) => {
         if (!controller.signal.aborted) {
+          itemsCache.set(cacheKey, response.items);
           setItems(response.items);
           setLoading(false);
         }

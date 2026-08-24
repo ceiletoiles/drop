@@ -63,6 +63,7 @@ export interface SpaceSummary {
 export interface SpaceMemberSummary {
   userId: string;
   displayName: string;
+  profilePicture?: string | null;
   role: 'owner' | 'member';
   joinedAt: string;
 }
