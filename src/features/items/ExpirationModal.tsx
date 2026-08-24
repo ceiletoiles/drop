@@ -11,9 +11,10 @@ interface ExpirationModalProps {
   item: Item | null;
   onClose: () => void;
   onSave: (itemId: string, expirationType: ExpirationType) => Promise<void>;
+  allowConsume?: boolean;
 }
 
-export const ExpirationModal = ({ open, item, onClose, onSave }: ExpirationModalProps) => {
+export const ExpirationModal = ({ open, item, onClose, onSave, allowConsume = true }: ExpirationModalProps) => {
   const [expirationType, setExpirationType] = useState<ExpirationType>('24_HOURS');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +61,7 @@ export const ExpirationModal = ({ open, item, onClose, onSave }: ExpirationModal
           itemType={item?.type ?? 'text'}
           value={expirationType}
           onChange={setExpirationType}
+          allowConsume={allowConsume}
         />
         {error ? <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p> : null}
       </div>

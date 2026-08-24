@@ -19,6 +19,7 @@ interface TextEditorModalProps {
   draftContent?: string;
   expirationType: ExpirationType;
   onExpirationTypeChange: (value: ExpirationType) => void;
+  allowConsume?: boolean;
 }
 
 export const TextEditorModal = ({
@@ -30,7 +31,8 @@ export const TextEditorModal = ({
   draftTitle = '',
   draftContent = '',
   expirationType,
-  onExpirationTypeChange
+  onExpirationTypeChange,
+  allowConsume = true
 }: TextEditorModalProps) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -102,7 +104,7 @@ export const TextEditorModal = ({
             <p className="mt-1">{getExpirationSummary(item.expirationType, item.expiresAt, item.type)}</p>
           </div>
         ) : (
-          <ExpirationSelector itemType="text" value={expirationType} onChange={onExpirationTypeChange} />
+          <ExpirationSelector itemType="text" value={expirationType} onChange={onExpirationTypeChange} allowConsume={allowConsume} />
         )}
         {error ? <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p> : null}
       </div>

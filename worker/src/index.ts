@@ -18,8 +18,29 @@ import {
   updateText,
   uploadItem
 } from './lib/items';
+import {
+  copySpaceItemText,
+  createSpace,
+  createSpaceFile,
+  createSpaceInviteLink,
+  createSpaceText,
+  deleteSpace,
+  deleteSpaceItem,
+  getSpace,
+  joinSpaceInvite,
+  leaveSpace,
+  listSpaces,
+  listMySpaceInvitations,
+  removeSpaceMember,
+  renameSpace,
+  revokeSpaceInviteLink,
+  downloadSpaceItemFile,
+  updateSpaceText,
+  updateSpaceItemExpiration,
+  validateSpaceInvite
+} from './lib/spaces';
 import { listActivities, recordActivity } from './lib/activity';
-import { expirationTypeSchema } from '../../shared/schemas';
+import { expirationTypeSchema, spaceExpirationTypeSchema } from '../../shared/schemas';
 import { MAX_SEARCH_CHARS } from '../../shared/constants';
 
 const readBody = async (request: Request) => {
@@ -39,6 +60,186 @@ const getErrorMessage = (error: unknown) => {
     if (typeof message === 'string') return message;
   }
   return 'Unexpected failure.';
+};
+
+const handlePublicSpaceInvite = async (request: Request, env: Env) => {
+  const url = new URL(request.url);
+  const segments = url.pathname.split('/');
+  const token = segments[4];
+  if (!token) return errorResponse(400, 'Invalid invitation token.');
+
+  if (request.method === 'GET' && segments.length === 5) {
+    const payload = await validateSpaceInvite(env, token);
+    return corsResponse(request, payload);
+  }
+
+  return notFound();
+};
+
+const handleSpaces = async (request: Request, env: Env, user: { id: string; email: string | null; displayName: string }) => {
+  const url = new URL(request.url);
+  const method = request.method.toUpperCase();
+  const segments = url.pathname.split('/');
+
+  if (method === 'GET' && url.pathname === '/api/spaces') {
+    const payload = await listSpaces(env, user.id);
+    return corsResponse(request, payload);
+  }
+
+  if (method === 'GET' && url.pathname === '/api/me/space-invitations') {
+    const payload = await listMySpaceInvitations(env, user.email);
+    return corsResponse(request, payload);
+  }
+
+  if (method === 'POST' && url.pathname === '/api/spaces') {
+    const body = await readBody(request);
+    const payload = await createSpace(
+      env,
+      { name: typeof body.name === 'string' ? body.name : '' },
+      user.id,
+      user.displayName
+    );
+    return corsResponse(request, payload, { status: 201 });
+  }
+
+  if (url.pathname.startsWith('/api/spaces/invitations/')) {
+    const token = segments[4];
+    if (!token) return errorResponse(400, 'Invalid invitation token.');
+
+    if (method === 'POST' && segments[5] === 'join') {
+      const payload = await joinSpaceInvite(env, user.id, user.email, user.displayName, token);
+      return corsResponse(request, payload);
+    }
+
+    return notFound();
+  }
+
+  const spaceId = segments[3];
+  if (!spaceId) return notFound();
+
+  if (method === 'GET' && url.pathname === `/api/spaces/${spaceId}`) {
+    const payload = await getSpace(env, user.id, spaceId);
+    return corsResponse(request, payload);
+  }
+
+  if (method === 'PATCH' && url.pathname === `/api/spaces/${spaceId}`) {
+    const body = await readBody(request);
+    const payload = await renameSpace(env, user.id, spaceId, typeof body.name === 'string' ? body.name : '');
+    return corsResponse(request, payload);
+  }
+
+  if (method === 'DELETE' && url.pathname === `/api/spaces/${spaceId}`) {
+    const payload = await deleteSpace(env, user.id, spaceId);
+    return corsResponse(request, payload);
+  }
+
+  if (method === 'POST' && url.pathname === `/api/spaces/${spaceId}/leave`) {
+    const payload = await leaveSpace(env, user.id, spaceId);
+    return corsResponse(request, payload);
+  }
+
+  if (method === 'DELETE' && url.pathname.startsWith(`/api/spaces/${spaceId}/members/`)) {
+    const memberUserId = segments[5];
+    if (!memberUserId) return errorResponse(400, 'Invalid member id.');
+    const payload = await removeSpaceMember(env, user.id, spaceId, memberUserId);
+    return corsResponse(request, payload);
+  }
+
+  if (method === 'POST' && url.pathname === `/api/spaces/${spaceId}/invitations`) {
+    const body = await readBody(request);
+    const email = typeof body.email === 'string' ? body.email.trim() : '';
+    if (!email) {
+      await revokeSpaceInviteLink(env, user.id, spaceId);
+    }
+    const payload = await createSpaceInviteLink(env, user.id, spaceId, email || null);
+    return corsResponse(request, payload, { status: 201 });
+  }
+
+  if (method === 'DELETE' && url.pathname === `/api/spaces/${spaceId}/invitations`) {
+    const payload = await revokeSpaceInviteLink(env, user.id, spaceId);
+    return corsResponse(request, payload);
+  }
+
+  if (method === 'POST' && url.pathname === `/api/spaces/${spaceId}/uploads`) {
+    const formData = await request.formData();
+    const file = formData.get('file');
+    const title = formData.get('title');
+    const expirationType = formData.get('expirationType');
+    if (!(file instanceof File)) return errorResponse(400, 'Missing file upload.');
+    const item = await createSpaceFile(
+      env,
+      user.id,
+      file,
+      spaceId,
+      typeof title === 'string' ? title : undefined,
+      typeof expirationType === 'string' ? expirationType : undefined
+    );
+    return corsResponse(request, { item }, { status: 201 });
+  }
+
+  if (method === 'POST' && url.pathname === `/api/spaces/${spaceId}/text`) {
+    const body = await readBody(request);
+    const expirationType =
+      body.expirationType === undefined
+        ? '24_HOURS'
+        : spaceExpirationTypeSchema.parse(body.expirationType);
+    const item = await createSpaceText(env, user.id, {
+      title: typeof body.title === 'string' ? body.title : '',
+      content: typeof body.content === 'string' ? body.content : '',
+      expirationType,
+      spaceId
+    });
+    return corsResponse(request, { item }, { status: 201 });
+  }
+
+  if (method === 'PUT' && url.pathname.startsWith(`/api/spaces/${spaceId}/text/`)) {
+    const itemId = segments[5];
+    if (!itemId) return errorResponse(400, 'Invalid item id.');
+    const body = await readBody(request);
+    const item = await updateSpaceText(env, user.id, spaceId, itemId, {
+      title: typeof body.title === 'string' ? body.title : undefined,
+      content: typeof body.content === 'string' ? body.content : undefined
+    });
+    return corsResponse(request, { item });
+  }
+
+  if (method === 'GET' && url.pathname.startsWith(`/api/spaces/${spaceId}/items/`) && url.pathname.endsWith('/download')) {
+    const itemId = segments[5];
+    if (!itemId) return errorResponse(400, 'Invalid item id.');
+    const { object, fileRow } = await downloadSpaceItemFile(env, user.id, spaceId, itemId);
+    const headers = new Headers();
+    headers.set('Content-Type', fileRow.mime_type || object.httpMetadata?.contentType || 'application/octet-stream');
+    headers.set('Content-Length', object.size.toString());
+    headers.set('Content-Disposition', `attachment; filename="${fileRow.original_name.replace(/"/g, '\\"')}"`);
+    headers.set('Cache-Control', 'private, no-store');
+    headers.set('X-Content-Type-Options', 'nosniff');
+    return new Response(object.body, { headers });
+  }
+
+  if (method === 'POST' && url.pathname.startsWith(`/api/spaces/${spaceId}/items/`) && url.pathname.endsWith('/copy')) {
+    const itemId = segments[5];
+    if (!itemId) return errorResponse(400, 'Invalid item id.');
+    const payload = await copySpaceItemText(env, user.id, spaceId, itemId);
+    return corsResponse(request, payload);
+  }
+
+  if (method === 'PATCH' && url.pathname.startsWith(`/api/spaces/${spaceId}/items/`) && url.pathname.endsWith('/expiration')) {
+    const itemId = segments[5];
+    if (!itemId) return errorResponse(400, 'Invalid item id.');
+    const body = await readBody(request);
+    const expirationType = spaceExpirationTypeSchema.parse(body.expirationType);
+    const payload = await updateSpaceItemExpiration(env, user.id, spaceId, itemId, expirationType);
+    return corsResponse(request, payload);
+  }
+
+  if (method === 'DELETE' && url.pathname.startsWith(`/api/spaces/${spaceId}/items/`)) {
+    const itemId = segments[5];
+    if (!itemId) return errorResponse(400, 'Invalid item id.');
+    const payload = await deleteSpaceItem(env, user.id, spaceId, itemId);
+    return corsResponse(request, payload);
+  }
+
+  return notFound();
 };
 
 const handlePublicShare = async (request: Request, env: Env) => {
@@ -232,12 +433,26 @@ export default {
       }
     }
 
+    if (url.pathname.startsWith('/api/spaces/invitations/') && request.method === 'GET' && url.pathname.split('/').length === 5) {
+      try {
+        const response = await handlePublicSpaceInvite(request, env);
+        return withCors(request, response);
+      } catch (error) {
+        const message = getErrorMessage(error);
+        return withCors(request, errorResponse(404, message));
+      }
+    }
+
     const user = await getAuthenticatedUser(request, env);
     if (!user) {
       return withCors(request, errorResponse(401, 'Unauthorized.'));
     }
 
     try {
+      const spaceResponse = await handleSpaces(request, env, user);
+      if (spaceResponse.status !== 404 || new URL(request.url).pathname.startsWith('/api/spaces')) {
+        return withCors(request, spaceResponse);
+      }
       const response = await handleItems(request, env, user.id);
       return withCors(request, response);
     } catch (error) {

@@ -12,6 +12,7 @@ const createAdminClient = (env: Env): SupabaseClient =>
 export interface AuthenticatedUser {
   id: string;
   email: string | null;
+  displayName: string;
 }
 
 export const getAuthenticatedUser = async (request: Request, env: Env): Promise<AuthenticatedUser | null> => {
@@ -25,6 +26,11 @@ export const getAuthenticatedUser = async (request: Request, env: Env): Promise<
 
   return {
     id: data.user.id,
-    email: data.user.email ?? null
+    email: data.user.email ?? null,
+    displayName:
+      (typeof data.user.user_metadata?.full_name === 'string' && data.user.user_metadata.full_name.trim()) ||
+      (typeof data.user.user_metadata?.name === 'string' && data.user.user_metadata.name.trim()) ||
+      data.user.email?.split('@')[0] ||
+      'Shiv'
   };
 };

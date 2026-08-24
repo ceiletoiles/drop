@@ -36,6 +36,15 @@ export const ListIcon = ({ className, ...props }: IconProps) => (
   </svg>
 );
 
+export const GridIcon = ({ className, ...props }: IconProps) => (
+  <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
+    <rect x="4.5" y="4.5" width="6" height="6" rx="1.5" />
+    <rect x="13.5" y="4.5" width="6" height="6" rx="1.5" />
+    <rect x="4.5" y="13.5" width="6" height="6" rx="1.5" />
+    <rect x="13.5" y="13.5" width="6" height="6" rx="1.5" />
+  </svg>
+);
+
 export const TextIcon = ({ className, ...props }: IconProps) => (
   <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
     <path d="M6 4h8l4 4v12H6z" />

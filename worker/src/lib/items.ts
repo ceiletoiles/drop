@@ -10,6 +10,7 @@ import { recordActivity } from './activity';
 interface ItemRow {
   id: string;
   user_id: string;
+  space_id: string | null;
   type: ItemType;
   title: string;
   created_at: string;
@@ -55,7 +56,7 @@ interface ShareSummaryRow {
   download_count: number;
 }
 
-const selectItemColumns = 'id,user_id,type,title,created_at,updated_at,expiration_type,expires_at';
+const selectItemColumns = 'id,user_id,space_id,type,title,created_at,updated_at,expiration_type,expires_at';
 const selectShareSummaryColumns = 'id,item_id,created_at,revoked_at,download_count';
 const selectShareColumns = 'id,item_id,token,token_hash,created_at,revoked_at,download_count';
 
@@ -83,6 +84,8 @@ const mapItem = (item: ItemRow, fileRow?: FileRow, textRow?: TextRow, shareRow?:
   expiresAt: item.expires_at,
   createdAt: item.created_at,
   updatedAt: item.updated_at,
+  spaceId: item.space_id,
+  uploadedByUserId: item.user_id,
   file: fileRow ? toFileMetadata(fileRow) : undefined,
   text: textRow ? { content: textRow.content } : undefined,
   share: mapShare(shareRow ?? null) ?? undefined
@@ -168,12 +171,10 @@ const toPublicItem = (item: ItemRow, fileRow?: FileRow, textRow?: TextRow): Shar
   text: textRow ? { content: textRow.content } : undefined
 });
 
-const getItemRows = async (db: SupabaseClient, userId: string) => {
-  const { data: items, error: itemsError } = await db
-    .from('items')
-    .select(selectItemColumns)
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false });
+const getItemRows = async (db: SupabaseClient, userId: string, spaceId: string | null = null) => {
+  let query = db.from('items').select(selectItemColumns).order('created_at', { ascending: false });
+  query = spaceId ? query.eq('space_id', spaceId) : query.eq('user_id', userId).is('space_id', null);
+  const { data: items, error: itemsError } = await query;
 
   if (itemsError) throw itemsError;
 
@@ -201,7 +202,7 @@ const getItemRows = async (db: SupabaseClient, userId: string) => {
 };
 
 const getItemWithRelations = async (db: SupabaseClient, userId: string, itemId: string) => {
-  const { data: item, error: itemError } = await db.from('items').select(selectItemColumns).eq('id', itemId).eq('user_id', userId).single();
+  const { data: item, error: itemError } = await db.from('items').select(selectItemColumns).eq('id', itemId).eq('user_id', userId).is('space_id', null).single();
   if (itemError || !item) throw itemError ?? new Error('Not found.');
   if (!isActiveItem(item as ItemRow)) throw new Error('Not found.');
 
@@ -251,6 +252,7 @@ const getSharedItemWithRelations = async (db: SupabaseClient, shareToken: string
 
   const { data: item, error: itemError } = await db.from('items').select(selectItemColumns).eq('id', share.item_id).single();
   if (itemError || !item) throw new Error('This shared Drop is no longer available.');
+  if ((item as ItemRow).space_id) throw new Error('This shared Drop is no longer available.');
   if (!isActiveItem(item as ItemRow)) throw new Error('This Drop has expired.');
 
   const typedItem = item as ItemRow;
@@ -361,10 +363,33 @@ export const listItems = async (env: Env, userId: string, query: string) => {
     });
 };
 
+export const listSpaceItems = async (env: Env, userId: string, spaceId: string, query: string) => {
+  const db = createDb(env);
+  const rows = await getItemRows(db, userId, spaceId);
+  const normalizedQuery = query.trim().toLowerCase();
+
+  return rows.items
+    .map((item) => ({
+      ...mapItem(
+        item,
+        rows.files.find((file) => file.item_id === item.id),
+        rows.textItems.find((textItem) => textItem.item_id === item.id),
+        rows.shares.find((share) => share.item_id === item.id) ?? null
+      )
+    }))
+    .filter((item) => {
+      if (!normalizedQuery) return true;
+      const title = item.title.toLowerCase();
+      const content = item.text?.content.toLowerCase() ?? '';
+      const filename = item.file?.originalName.toLowerCase() ?? '';
+      return title.includes(normalizedQuery) || content.includes(normalizedQuery) || filename.includes(normalizedQuery);
+    });
+};
+
 export const createText = async (
   env: Env,
   userId: string,
-  payload: { title: string; content: string; expirationType: ExpirationType }
+  payload: { title: string; content: string; expirationType: ExpirationType; spaceId?: string | null }
 ) => {
   const parsed = createTextItemSchema.parse(payload);
   const db = createDb(env);
@@ -373,6 +398,7 @@ export const createText = async (
     .from('items')
     .insert({
       user_id: userId,
+      space_id: payload.spaceId ?? null,
       type: 'text',
       title: parsed.title,
       expiration_type: parsed.expirationType
@@ -412,7 +438,7 @@ export const updateText = async (env: Env, userId: string, itemId: string, paylo
   const { data: existing, error: existingError } = await db.from('items').select(selectItemColumns).eq('id', itemId).eq('user_id', userId).single();
 
   if (existingError || !existing) throw existingError ?? new Error('Not found.');
-  if (!isActiveItem(existing as ItemRow)) throw new Error('Not found.');
+  if (!isActiveItem(existing as ItemRow) || (existing as ItemRow).space_id) throw new Error('Not found.');
   if ((existing as ItemRow).type !== 'text') throw new Error('Only text items can be edited.');
 
   const updatePayload: Record<string, string> = {};
@@ -450,7 +476,7 @@ export const updateExpiration = async (env: Env, userId: string, itemId: string,
 
   const { data: existing, error: existingError } = await db.from('items').select(selectItemColumns).eq('id', itemId).eq('user_id', userId).single();
   if (existingError || !existing) throw existingError ?? new Error('Not found.');
-  if (!isActiveItem(existing as ItemRow)) throw new Error('Not found.');
+  if (!isActiveItem(existing as ItemRow) || (existing as ItemRow).space_id) throw new Error('Not found.');
 
   const { error: updateError } = await db
     .from('items')
@@ -571,7 +597,14 @@ export const consumeItem = async (env: Env, userId: string, itemId: string) => {
   });
 };
 
-export const uploadItem = async (env: Env, userId: string, file: File, title?: string, expirationType?: string) => {
+export const uploadItem = async (
+  env: Env,
+  userId: string,
+  file: File,
+  title?: string,
+  expirationType?: string,
+  spaceId?: string | null
+) => {
   if (file.size > MAX_UPLOAD_BYTES) {
     throw new Error('File is too large.');
   }
@@ -588,6 +621,7 @@ export const uploadItem = async (env: Env, userId: string, file: File, title?: s
       .from('items')
       .insert({
         user_id: userId,
+        space_id: spaceId ?? null,
         type: 'file',
         title: title?.trim() || safeName,
         expiration_type: parsedExpiration

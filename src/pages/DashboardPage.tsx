@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button';
 import {
   ChevronDownIcon,
   FileIcon,
+  GridIcon,
   HomeIcon,
   ImageIcon,
   ListIcon,
@@ -640,6 +641,20 @@ export const DashboardPage = () => {
               })}
             </nav>
 
+            <div className="mt-6 rounded-[1.5rem] border border-slate-200/80 bg-white/80 p-3 shadow-[0_16px_40px_rgba(15,23,42,0.05)]">
+              <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Spaces</p>
+              <button
+                type="button"
+                onClick={() => navigate('/spaces')}
+                className="mt-2 flex w-full items-center gap-2.5 rounded-2xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+              >
+                <span className="grid h-8 w-8 place-items-center rounded-xl bg-slate-100 text-slate-600">
+                  <GridIcon />
+                </span>
+                <span className="flex-1">Spaces</span>
+              </button>
+            </div>
+
           </div>
         </aside>
 
@@ -879,9 +894,26 @@ export const DashboardPage = () => {
                   </span>
                   <span className="flex-1">{label}</span>
                 </button>
-              );
-            })}
+                );
+              })}
           </nav>
+
+          <div className="mt-6 rounded-[1.5rem] border border-slate-200/80 bg-white/80 p-3 shadow-[0_16px_40px_rgba(15,23,42,0.05)]">
+            <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Spaces</p>
+            <button
+              type="button"
+              onClick={() => {
+                setDrawerOpen(false);
+                navigate('/spaces');
+              }}
+              className="mt-2 flex w-full items-center gap-2.5 rounded-2xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+            >
+              <span className="grid h-8 w-8 place-items-center rounded-xl bg-slate-100 text-slate-600">
+                <GridIcon />
+              </span>
+              <span className="flex-1">Spaces</span>
+            </button>
+          </div>
 
           <div className="mt-8 rounded-[1.75rem] border border-slate-200 bg-[linear-gradient(180deg,_rgba(248,250,252,0.96),_rgba(236,240,255,0.92))] p-4">
             <div className="flex items-center gap-3">

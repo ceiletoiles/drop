@@ -44,6 +44,15 @@ Drop is a lightweight cross-device transfer and scratchpad app built for fast ca
 - Shared download counts for valid file downloads
 - Shared items still obey the existing V0.3 expiration and consume rules
 
+## What is in V0.5
+
+- Spaces for shared collaboration across members
+- Owner-only space invite controls with separate email invite, create invite link, and revoke invite link actions
+- Invite links are stored with the raw token so the same join URL can be reused until the 7-day expiration
+- Full absolute join URLs are shown in the app instead of relative `/join/:token` fragments
+- Pending email-targeted space invites appear in the recipient's account page
+- Space invite panels stay hidden unless there is at least one pending invitation
+
 ## Architecture
 
 - Frontend: React, TypeScript, Vite, Tailwind CSS
@@ -127,6 +136,8 @@ Local env files:
    - `supabase/migrations/0003_activity_log_entity.sql`
    - `supabase/migrations/0004_v03_expiration.sql`
    - `supabase/migrations/0005_v04_sharing.sql`
+   - `supabase/migrations/0006_v05_spaces.sql`
+   - `supabase/migrations/0007_v06_space_invite_tokens.sql`
 3. Ensure email/password auth is enabled.
 4. Copy the project URL and anon key into the frontend env file.
 5. Copy the service role key into the Worker env or Wrangler secrets.
@@ -145,6 +156,14 @@ The V0.4 migration adds:
 - a retrievable share token plus hashed share-token lookup
 - one active share per item
 - cascade cleanup when an item is deleted
+
+The V0.5 migration adds:
+
+- `spaces`
+- `space_members`
+- `space_invitations`
+- per-space owner/member access checks
+- reusable invite links backed by stored raw invite tokens
 
 ## R2 setup
 

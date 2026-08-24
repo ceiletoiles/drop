@@ -19,6 +19,7 @@ interface RecentItemsListProps {
   activeFilter: 'home' | 'all' | 'text' | 'files' | 'images' | 'search';
   searchInputRef: RefObject<HTMLInputElement | null>;
   message?: string | null;
+  scope?: 'personal' | 'space';
   onQueryChange: (value: string) => void;
   onSortChange: (value: 'newest' | 'oldest') => void;
   onFocusSearch: () => void;
@@ -26,7 +27,7 @@ interface RecentItemsListProps {
   onCopyText: (item: Item) => Promise<void>;
   onDelete: (item: Item) => Promise<void>;
   onDownload: (item: Item) => Promise<void>;
-  onShare: (item: Item) => void;
+  onShare?: (item: Item) => void;
   onChangeExpiration: (item: Item) => void;
 }
 
@@ -38,6 +39,7 @@ export const RecentItemsList = ({
   activeFilter,
   searchInputRef,
   message,
+  scope = 'personal',
   onQueryChange,
   onSortChange,
   onFocusSearch,
@@ -155,7 +157,7 @@ export const RecentItemsList = ({
   );
 
   const shareLabel = infoItem
-    ? infoItem.share
+    ? scope === 'personal' && infoItem.share
       ? `Shared${infoItem.share.downloadCount > 0 ? ` · ${infoItem.share.downloadCount} ${infoItem.type === 'text' ? 'copies' : 'downloads'}` : ''}`
       : 'Not shared'
     : '';
@@ -287,11 +289,17 @@ export const RecentItemsList = ({
                         {item.type === 'file' && item.file ? <span className="shrink-0">{formatFileSize(item.file.size)}</span> : null}
                         {item.type === 'file' && item.file ? <span className="hidden h-1 w-1 shrink-0 rounded-full bg-slate-300 sm:inline-block" aria-hidden="true" /> : null}
                         <span className="shrink-0">{formatRelativeTime(item.createdAt)}</span>
+                        {scope === 'space' && item.uploadedByName ? (
+                          <>
+                            <span className="hidden h-1 w-1 shrink-0 rounded-full bg-slate-300 sm:inline-block" aria-hidden="true" />
+                            <span className="shrink-0 text-slate-500">{`Uploaded by ${item.uploadedByName}`}</span>
+                          </>
+                        ) : null}
                         <span className="hidden shrink-0 items-center gap-1 text-slate-500 sm:flex">
                           <TrashIcon className="h-3 w-3" />
                           <span className="shrink-0">{getExpirationSummary(item.expirationType, item.expiresAt, item.type)}</span>
                         </span>
-                        {item.share ? (
+                        {scope === 'personal' && item.share ? (
                           <>
                             <span className="hidden h-1 w-1 shrink-0 rounded-full bg-slate-300 sm:inline-block" aria-hidden="true"></span>
                             <span className="shrink-0 font-medium text-emerald-600">
@@ -326,15 +334,17 @@ export const RecentItemsList = ({
                       </Button>
                     )}
 
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="h-12 w-12 rounded-2xl p-0 text-slate-700 hover:bg-slate-100"
-                      onClick={() => onShare(item)}
-                      aria-label={item.share ? 'Share again' : 'Share item'}
-                    >
-                      <ShareIcon className="h-6 w-6" />
-                    </Button>
+                    {scope === 'personal' && onShare ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="h-12 w-12 rounded-2xl p-0 text-slate-700 hover:bg-slate-100"
+                        onClick={() => onShare(item)}
+                        aria-label={item.share ? 'Share again' : 'Share item'}
+                      >
+                        <ShareIcon className="h-6 w-6" />
+                      </Button>
+                    ) : null}
 
                     <div className="relative">
                       <Button
@@ -532,20 +542,24 @@ export const RecentItemsList = ({
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-[0.86rem] font-semibold text-slate-950">Access</p>
-                    <p className="mt-1 text-[0.84rem] text-slate-900">{infoItem.share ? 'Shared' : 'Private'}</p>
+                    <p className="mt-1 text-[0.84rem] text-slate-900">{scope === 'space' ? 'Space members' : infoItem.share ? 'Shared' : 'Private'}</p>
                     <p className="mt-0.5 text-[0.72rem] leading-5 text-slate-500">
-                      {infoItem.share ? 'Anyone with the link can open this item.' : 'Only you can access this item.'}
+                      {scope === 'space'
+                        ? 'Visible to every active member of this Space.'
+                        : infoItem.share
+                          ? 'Anyone with the link can open this item.'
+                          : 'Only you can access this item.'}
                     </p>
                   </div>
                   <div className="shrink-0">
                     <div
                       className={clsx(
                         'inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-[0.72rem] font-medium',
-                        infoItem.share ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-700'
+                        scope === 'space' || infoItem.share ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-700'
                       )}
                     >
                       <LockIcon className="h-3 w-3" />
-                      <span>{shareLabel}</span>
+                      <span>{scope === 'space' ? 'Members only' : shareLabel}</span>
                     </div>
                   </div>
                 </div>

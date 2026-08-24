@@ -6,9 +6,10 @@ import type { ActivityItem } from '../features/activity/types';
 import { useAuth } from '../features/auth/auth-context';
 import { formatFileSize, formatRelativeTime, getInitials } from '../lib/format';
 import { Link } from 'react-router-dom';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useItems } from '../features/items/useItems';
 import { isImageFile } from '../lib/file';
+import { fetchMySpaceInvitations } from '../features/spaces/spaces-api';
 
 type StorageCategory = 'files' | 'images' | 'text' | 'other';
 
@@ -28,6 +29,9 @@ export const AccountPage = () => {
   const { activities, loading: activityLoading, error: activityError } = useActivity(session?.access_token ?? null, 20);
   const [activeCategory, setActiveCategory] = useState<StorageCategory | null>(null);
   const [activityOpen, setActivityOpen] = useState(false);
+  const [spaceInvitations, setSpaceInvitations] = useState<Awaited<ReturnType<typeof fetchMySpaceInvitations>>['invitations']>([]);
+  const [spaceInvitationsLoading, setSpaceInvitationsLoading] = useState(false);
+  const [spaceInvitationsError, setSpaceInvitationsError] = useState<string | null>(null);
 
   const displayName =
     user?.user_metadata?.full_name ??
@@ -138,6 +142,33 @@ export const AccountPage = () => {
 
   const recentActivities = activities.slice(0, 5);
 
+  useEffect(() => {
+    if (!session?.access_token) {
+      setSpaceInvitations([]);
+      setSpaceInvitationsLoading(false);
+      setSpaceInvitationsError(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    setSpaceInvitationsLoading(true);
+    setSpaceInvitationsError(null);
+
+    fetchMySpaceInvitations(session.access_token)
+      .then((response) => {
+        if (controller.signal.aborted) return;
+        setSpaceInvitations(response.invitations);
+        setSpaceInvitationsLoading(false);
+      })
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) return;
+        setSpaceInvitationsError(err instanceof Error ? err.message : 'Failed to load space invites.');
+        setSpaceInvitationsLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [session?.access_token]);
+
   const getActivityActionLabel = (activity: ActivityItem) => {
     switch (activity.action) {
       case 'sign_in':
@@ -230,6 +261,50 @@ export const AccountPage = () => {
               </div>
             </div>
           </section>
+
+          {spaceInvitations.length > 0 ? (
+            <section className={panelClassName}>
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium tracking-normal text-slate-700">Space invitations</p>
+                </div>
+              </div>
+
+              {spaceInvitationsLoading ? (
+                <div className="mt-4 flex items-center justify-center gap-2 py-4 text-sm text-slate-500">
+                  <Spinner />
+                  Loading invites
+                </div>
+              ) : spaceInvitationsError ? (
+                <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-6 text-sm text-rose-700">
+                  {spaceInvitationsError}
+                </div>
+              ) : (
+                <div className="mt-4 space-y-2">
+                  {spaceInvitations.map(({ space, invitation }) => {
+                    const inviteHref = invitation.token ? `/join/${invitation.token}` : invitation.url ?? '';
+                    return (
+                      <div key={invitation.id} className="flex flex-col gap-3 rounded-[1rem] border border-slate-200/80 bg-white/75 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-slate-950">{space.name}</p>
+                          <p className="text-xs text-slate-500">Owned by {space.ownerName}</p>
+                          <p className="mt-1 text-xs text-slate-500">Expires {formatRelativeTime(invitation.expiresAt)}</p>
+                        </div>
+                        {inviteHref ? (
+                          <a
+                            href={inviteHref}
+                            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white/90 px-4 py-2.5 text-sm font-medium text-slate-950 shadow-sm transition hover:bg-white"
+                          >
+                            Join invite
+                          </a>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          ) : null}
 
           <section className={panelClassName}>
             <div className="flex items-start justify-between gap-4">

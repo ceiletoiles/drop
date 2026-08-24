@@ -3,6 +3,7 @@ import type { EXPIRATION_TYPES } from './constants';
 export type ItemType = 'text' | 'file';
 export type ActivityAction = 'sign_in' | 'sign_out' | 'create' | 'upload' | 'edit' | 'delete';
 export type ExpirationType = (typeof EXPIRATION_TYPES)[number];
+export type SpaceExpirationType = '24_HOURS' | '7_DAYS' | '1_MONTH';
 
 export interface FileMetadata {
   originalName: string;
@@ -22,6 +23,9 @@ export interface ItemSummary {
   expiresAt: string | null;
   createdAt: string;
   updatedAt: string;
+  spaceId?: string | null;
+  uploadedByUserId?: string;
+  uploadedByName?: string | null;
   file?: FileMetadata;
   text?: TextMetadata;
   share?: ShareSummary | null;
@@ -39,8 +43,79 @@ export interface SharedItemSummary {
   expiresAt: string | null;
   createdAt: string;
   updatedAt: string;
+  spaceId?: string | null;
+  uploadedByName?: string | null;
   file?: FileMetadata;
   text?: TextMetadata;
+}
+
+export interface SpaceSummary {
+  id: string;
+  name: string;
+  ownerId: string;
+  ownerName: string;
+  createdAt: string;
+  updatedAt: string;
+  memberCount: number;
+  itemCount: number;
+}
+
+export interface SpaceMemberSummary {
+  userId: string;
+  displayName: string;
+  role: 'owner' | 'member';
+  joinedAt: string;
+}
+
+export interface SpaceInvitationSummary {
+  id: string;
+  spaceId: string;
+  invitedEmail: string | null;
+  createdAt: string;
+  expiresAt: string;
+  revokedAt: string | null;
+  acceptedAt: string | null;
+  token?: string;
+  url?: string;
+}
+
+export interface SpaceInviteSpaceSummary {
+  id: string;
+  name: string;
+  ownerName: string;
+}
+
+export interface SpaceInvitationInboxItem {
+  space: SpaceInviteSpaceSummary;
+  invitation: SpaceInvitationSummary;
+}
+
+export interface SpaceInvitationsResponse {
+  invitations: SpaceInvitationInboxItem[];
+}
+
+export interface SpaceDetailResponse {
+  space: SpaceSummary;
+  members: SpaceMemberSummary[];
+  items: ItemSummary[];
+  invite?: SpaceInvitationSummary | null;
+}
+
+export interface SpacesResponse {
+  spaces: SpaceSummary[];
+}
+
+export interface CreateSpaceResponse {
+  space: SpaceSummary;
+}
+
+export interface CreateSpaceItemResponse {
+  item: ItemSummary;
+}
+
+export interface JoinSpaceResponse {
+  space: SpaceSummary;
+  joined: boolean;
 }
 
 export interface ShareCreateResponse {
