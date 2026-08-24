@@ -8,7 +8,6 @@ import {
   GridIcon,
   HomeIcon,
   ImageIcon,
-  ListIcon,
   LogOutIcon,
   MenuIcon,
   PlusIcon,
@@ -906,8 +905,8 @@ export const DashboardPage = () => {
 
           <div className="mt-8 rounded-[1.75rem] border border-slate-200 bg-[linear-gradient(180deg,_rgba(248,250,252,0.96),_rgba(236,240,255,0.92))] p-4">
             <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 text-sm font-semibold text-white">
-                {getInitials(user?.email ?? displayName)}
+              <div className="grid h-10 w-10 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 text-sm font-semibold text-white">
+                {profileImage ? <img src={profileImage} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" /> : getInitials(user?.email ?? displayName)}
               </div>
               <div>
                 <p className="text-sm font-medium text-slate-950">{displayName}</p>

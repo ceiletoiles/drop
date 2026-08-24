@@ -6,6 +6,8 @@ import type {
   SpaceDetailResponse,
   SpaceInvitationSummary,
   SpaceMemberSummary,
+  SpaceMemberPreview,
+  SpaceRecentItemPreview,
   SpaceSummary,
   SpacesResponse,
   SpaceExpirationType
@@ -109,7 +111,22 @@ const hashToken = async (token: string) => {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 };
 
-const toSpaceSummary = (row: SpaceRow, memberCount = 0, itemCount = 0): SpaceSummary => ({
+const readProfilePicture = (metadata: unknown): string | null => {
+  if (!metadata || typeof metadata !== 'object') return null;
+
+  const userMetadata = metadata as { picture?: unknown; avatar_url?: unknown };
+  if (typeof userMetadata.picture === 'string') return userMetadata.picture;
+  if (typeof userMetadata.avatar_url === 'string') return userMetadata.avatar_url;
+  return null;
+};
+
+const toSpaceSummary = (
+  row: SpaceRow,
+  memberCount = 0,
+  itemCount = 0,
+  memberPreviews?: SpaceMemberPreview[],
+  recentItems?: SpaceRecentItemPreview[]
+): SpaceSummary => ({
   id: row.id,
   name: row.name,
   ownerId: row.owner_id,
@@ -117,18 +134,14 @@ const toSpaceSummary = (row: SpaceRow, memberCount = 0, itemCount = 0): SpaceSum
   createdAt: row.created_at,
   updatedAt: row.updated_at,
   memberCount,
-  itemCount
+  itemCount,
+  memberPreviews,
+  recentItems
 });
 
 const toMemberSummary = async (db: SupabaseClient, row: SpaceMemberRow): Promise<SpaceMemberSummary> => {
   const { data } = await db.auth.admin.getUserById(row.user_id);
-  const metadata = data.user?.user_metadata;
-  const profilePicture =
-    typeof metadata?.picture === 'string'
-      ? metadata.picture
-      : typeof metadata?.avatar_url === 'string'
-        ? metadata.avatar_url
-        : null;
+  const profilePicture = readProfilePicture(data.user?.user_metadata);
 
   return {
     userId: row.user_id,
@@ -295,27 +308,110 @@ export const listSpaces = async (env: Env, userId: string): Promise<SpacesRespon
     await Promise.all([
       db.from('spaces').select('id,name,owner_id,owner_name,created_at,updated_at').in('id', spaceIds),
       db.from('space_members').select('space_id,user_id,display_name,role,joined_at').in('space_id', spaceIds),
-      db.from('items').select('id,space_id,expires_at').in('space_id', spaceIds)
+      db.from('items').select('id,space_id,type,title,updated_at,expires_at').in('space_id', spaceIds)
     ]);
 
   if (spaceError) throw spaceError;
   if (memberError) throw memberError;
   if (itemError) throw itemError;
 
-  const memberCounts = new Map<string, number>();
-  for (const row of memberRows ?? []) {
-    memberCounts.set(row.space_id, (memberCounts.get(row.space_id) ?? 0) + 1);
-  }
+  const memberRowsTyped = (memberRows ?? []) as SpaceMemberRow[];
+  const uniqueMemberUserIds = Array.from(new Set(memberRowsTyped.map((row) => row.user_id)));
+  const profilePictureByUserId = new Map<string, string | null>();
 
-  const itemCounts = new Map<string, number>();
-  for (const row of itemRows ?? []) {
-    if (!isExpired(row)) {
-      itemCounts.set(row.space_id, (itemCounts.get(row.space_id) ?? 0) + 1);
+  await Promise.all(
+    uniqueMemberUserIds.map(async (memberUserId) => {
+      const { data } = await db.auth.admin.getUserById(memberUserId);
+      profilePictureByUserId.set(memberUserId, readProfilePicture(data.user?.user_metadata));
+    })
+  );
+
+  const memberCounts = new Map<string, number>();
+  const memberPreviewsBySpaceId = new Map<string, SpaceMemberPreview[]>();
+  for (const row of memberRowsTyped) {
+    memberCounts.set(row.space_id, (memberCounts.get(row.space_id) ?? 0) + 1);
+
+    const previews = memberPreviewsBySpaceId.get(row.space_id) ?? [];
+    if (previews.length < 4) {
+      previews.push({
+        userId: row.user_id,
+        displayName: row.display_name,
+        profilePicture: profilePictureByUserId.get(row.user_id) ?? null
+      });
+      memberPreviewsBySpaceId.set(row.space_id, previews);
     }
   }
 
+  const itemCounts = new Map<string, number>();
+  const activeRecentRowsBySpaceId = new Map<string, ItemRow[]>();
+  for (const row of (itemRows ?? []) as ItemRow[]) {
+    if (!row.space_id) continue;
+
+    if (!isExpired(row)) {
+      itemCounts.set(row.space_id, (itemCounts.get(row.space_id) ?? 0) + 1);
+
+      const currentRows = activeRecentRowsBySpaceId.get(row.space_id) ?? [];
+      currentRows.push(row);
+      activeRecentRowsBySpaceId.set(row.space_id, currentRows);
+    }
+  }
+
+  const recentRowsBySpaceId = new Map<string, ItemRow[]>();
+  for (const [spaceId, rows] of activeRecentRowsBySpaceId.entries()) {
+    recentRowsBySpaceId.set(
+      spaceId,
+      [...rows]
+        .sort((left, right) => new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime())
+        .slice(0, 2)
+    );
+  }
+
+  const recentFileItemIds = Array.from(new Set(Array.from(recentRowsBySpaceId.values()).flat().filter((row) => row.type === 'file').map((row) => row.id)));
+
+  const filesByItemId = new Map<string, { original_name: string; mime_type: string }>();
+  if (recentFileItemIds.length > 0) {
+    const { data: recentFileRows, error: recentFilesError } = await db
+      .from('files')
+      .select('item_id,original_name,mime_type')
+      .in('item_id', recentFileItemIds);
+
+    if (recentFilesError) throw recentFilesError;
+
+    for (const row of recentFileRows ?? []) {
+      filesByItemId.set(row.item_id, {
+        original_name: row.original_name,
+        mime_type: row.mime_type
+      });
+    }
+  }
+
+  const recentItemsBySpaceId = new Map<string, SpaceRecentItemPreview[]>();
+  for (const [spaceId, rows] of recentRowsBySpaceId.entries()) {
+    recentItemsBySpaceId.set(
+      spaceId,
+      rows.map((row) => {
+        const fileMeta = row.type === 'file' ? filesByItemId.get(row.id) : undefined;
+        return {
+          id: row.id,
+          type: row.type,
+          updatedAt: row.updated_at,
+          filename: fileMeta?.original_name ?? null,
+          mimeType: fileMeta?.mime_type ?? null
+        };
+      })
+    );
+  }
+
   const spaces = (spaceRows ?? [])
-    .map((row) => toSpaceSummary(row as SpaceRow, memberCounts.get(row.id) ?? 0, itemCounts.get(row.id) ?? 0))
+    .map((row) =>
+      toSpaceSummary(
+        row as SpaceRow,
+        memberCounts.get(row.id) ?? 0,
+        itemCounts.get(row.id) ?? 0,
+        memberPreviewsBySpaceId.get(row.id),
+        recentItemsBySpaceId.get(row.id)
+      )
+    )
     .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime());
 
   return { spaces };

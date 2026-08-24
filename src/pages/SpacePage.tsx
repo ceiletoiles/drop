@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { Spinner } from '../components/ui/Spinner';
-import { LogOutIcon, PlusIcon, UploadIcon } from '../components/ui/Icon';
+import { LogOutIcon, PlusIcon, TrashIcon, UploadIcon } from '../components/ui/Icon';
 import { useAuth } from '../features/auth/auth-context';
 import { UploadDropzone, type UploadItemState } from '../features/items/UploadDropzone';
 import { RecentItemsList } from '../features/items/RecentItemsList';
@@ -375,27 +375,50 @@ export const SpacePage = () => {
 
   const inviteSection = isOwner ? (
     <section className="rounded-[2rem] border border-slate-200/80 bg-white/80 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Invite</p>
-      <div className="mt-3 space-y-3">
-        <Input value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="name@example.com" />
+      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">Invite</p>
+      <div className="mt-2.5 space-y-2.5">
+        <Input
+          value={inviteEmail}
+          onChange={(event) => setInviteEmail(event.target.value)}
+          placeholder="name@example.com"
+          className="h-10 rounded-2xl px-3.5 py-2.5 text-sm"
+        />
         <div className="grid gap-2 sm:grid-cols-2">
-          <Button type="button" onClick={() => void handleSendEmailInvite()} disabled={inviteBusy || !inviteEmail.trim()}>
+          <Button
+            type="button"
+            variant="secondary"
+            className="h-10 rounded-2xl px-2.5 text-[11px] whitespace-nowrap !text-black sm:px-3 sm:text-xs"
+            onClick={() => void handleSendEmailInvite()}
+            disabled={inviteBusy || !inviteEmail.trim()}
+          >
             {inviteBusy ? <Spinner /> : 'Send email invite'}
           </Button>
-          <Button type="button" variant="secondary" onClick={() => void handleCreateInviteLink()} disabled={inviteBusy}>
+          <Button
+            type="button"
+            variant="secondary"
+            className="h-10 rounded-2xl px-2.5 text-[11px] whitespace-nowrap sm:px-3 sm:text-xs"
+            onClick={() => void handleCreateInviteLink()}
+            disabled={inviteBusy}
+          >
             Create invite link
           </Button>
         </div>
         {activeInviteUrl ? (
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-700">
             <p className="font-medium text-slate-950">Active invite link</p>
-            <p className="mt-1 break-all">{activeInviteUrl}</p>
+            <p className="mt-1 break-all text-[11px] leading-5">{activeInviteUrl}</p>
           </div>
         ) : (
-          <p className="text-xs leading-5 text-slate-500">Create a link invite once, then reuse the same join URL until it expires or is revoked.</p>
+          <p className="text-[11px] leading-5 text-slate-500">Create a link invite once, then reuse the same join URL until it expires or is revoked.</p>
         )}
         {invite ? (
-          <Button type="button" variant="secondary" onClick={() => void handleRevokeInviteLink()} disabled={inviteBusy}>
+          <Button
+            type="button"
+            variant="secondary"
+            className="h-10 rounded-2xl px-2.5 text-[11px] whitespace-nowrap sm:px-3 sm:text-xs"
+            onClick={() => void handleRevokeInviteLink()}
+            disabled={inviteBusy}
+          >
             Revoke invite link
           </Button>
         ) : null}
@@ -464,6 +487,7 @@ export const SpacePage = () => {
             </Button>
             {isOwner ? (
               <Button type="button" variant="secondary" className="h-10 min-w-0 flex-1 px-2 text-xs sm:flex-none sm:px-4 sm:text-sm" onClick={() => void handleDeleteSpace()} disabled={busy}>
+                <TrashIcon />
                 Delete Space
               </Button>
             ) : (

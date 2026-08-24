@@ -58,6 +58,22 @@ export interface SpaceSummary {
   updatedAt: string;
   memberCount: number;
   itemCount: number;
+  memberPreviews?: SpaceMemberPreview[];
+  recentItems?: SpaceRecentItemPreview[];
+}
+
+export interface SpaceMemberPreview {
+  userId: string;
+  displayName: string;
+  profilePicture?: string | null;
+}
+
+export interface SpaceRecentItemPreview {
+  id: string;
+  type: ItemType;
+  updatedAt: string;
+  filename?: string | null;
+  mimeType?: string | null;
 }
 
 export interface SpaceMemberSummary {
