@@ -46,7 +46,7 @@ export const UploadDropzone = ({
   return (
     <div
       className={clsx(
-        'rounded-[2rem] border border-dashed px-4 py-5 transition sm:px-5 sm:py-6',
+        'w-full min-w-0 overflow-hidden rounded-[2rem] border border-dashed px-4 py-5 transition sm:px-5 sm:py-6',
         dragging ? 'border-indigo-400 bg-indigo-50 shadow-[0_0_0_1px_rgba(99,102,241,0.18)]' : 'border-[#8B7AE8] bg-[#F5F3FF]'
       )}
       onDragEnter={() => setDragging(true)}
@@ -77,7 +77,9 @@ export const UploadDropzone = ({
               <div key={upload.id} className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-slate-200/80 bg-white/75 px-3 py-2.5 shadow-sm">
                 <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-slate-950">{upload.name}</p>
+                    <p className="truncate text-sm font-medium text-slate-950" title={upload.name}>
+                      {upload.name}
+                    </p>
                     <p className="mt-0.5 text-xs text-slate-500">{Math.max(upload.size / 1024 / 1024, 0).toFixed(1)} MB</p>
                   </div>
                   <span

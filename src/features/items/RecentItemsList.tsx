@@ -181,7 +181,7 @@ export const RecentItemsList = ({
   );
 
   return (
-    <section ref={rootRef} className="pt-5" onPointerDownCapture={closeMenuOnOutsideTap}>
+    <section ref={rootRef} className="w-full min-w-0 pt-5" onPointerDownCapture={closeMenuOnOutsideTap}>
       <div className="pb-3">
         <div className="flex items-center justify-between gap-3 sm:hidden">
           {headerCopy}
@@ -257,21 +257,21 @@ export const RecentItemsList = ({
           </p>
         </div>
       ) : (
-        <ul className="divide-y divide-slate-200 border-t border-slate-200">
+        <ul className="min-w-0 divide-y divide-slate-200 border-t border-slate-200">
           {items.map((item) => {
             const isText = item.type === 'text';
             const isMenuOpen = menuState?.itemId === item.id;
 
             return (
-              <li key={item.id} className="py-3">
-                <div className="flex items-start gap-3 transition">
+              <li key={item.id} className="min-w-0 py-3">
+                <div className="flex min-w-0 items-start gap-3 transition">
                   <button
                     type="button"
                     onClick={() => {
                       if (isText) onEditText(item);
                       if (!isText) void onDownload(item);
                     }}
-                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                    className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden text-left"
                   >
                     <FileTypeIcon
                       itemType={item.type}
@@ -279,8 +279,10 @@ export const RecentItemsList = ({
                       mimeType={item.file?.mimeType}
                       className="h-7 w-7 shrink-0"
                     />
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-slate-950">{item.title}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold leading-5 text-slate-950" title={item.title}>
+                        {item.title}
+                      </p>
                       <p className="mt-1 flex min-w-0 flex-nowrap items-center gap-1.5 overflow-hidden whitespace-nowrap text-[10px] leading-none text-slate-500 sm:flex-wrap sm:gap-x-2 sm:gap-y-1 sm:text-xs">
                         <span className="shrink-0 text-[10px] font-medium leading-none text-indigo-600 sm:text-[11px]">
                           {getFileTypeLabel({ itemType: item.type, filename: item.file?.originalName, mimeType: item.file?.mimeType })}

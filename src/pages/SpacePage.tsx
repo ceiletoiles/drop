@@ -476,8 +476,8 @@ export const SpacePage = () => {
 
   return (
     <AppShell>
-      <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] w-full max-w-6xl flex-col gap-6 pt-1 sm:pt-2">
-        <header className="relative flex flex-wrap items-start justify-between gap-4 md:flex-nowrap md:items-center">
+      <div className="flex min-h-[calc(100vh-1.5rem)] w-full min-w-0 flex-col gap-6 pt-1 sm:pt-2 md:mx-auto md:max-w-6xl">
+        <header className="relative flex w-full min-w-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-3">
               <Button
@@ -498,22 +498,22 @@ export const SpacePage = () => {
             </div>
           </div>
 
-          <div className="flex w-full flex-nowrap items-center gap-1 sm:w-auto sm:gap-3 md:ml-auto">
-            <Button type="button" variant="secondary" className="h-10 min-w-0 flex-1 px-2 text-xs sm:flex-none sm:px-4 sm:text-sm" onClick={() => handleFileBrowse('', fileInputRef)} disabled={!token || uploadBusy}>
+          <div className="grid w-full min-w-0 grid-cols-2 gap-2 sm:w-auto sm:flex sm:flex-nowrap sm:gap-3 md:ml-auto">
+            <Button type="button" variant="secondary" className="h-10 min-w-0 w-full px-2 text-xs leading-tight sm:w-auto sm:px-4 sm:text-sm" onClick={() => handleFileBrowse('', fileInputRef)} disabled={!token || uploadBusy}>
               <UploadIcon />
               Upload
             </Button>
-            <Button type="button" variant="secondary" className="h-10 min-w-0 flex-1 px-2 text-xs sm:flex-none sm:px-4 sm:text-sm" onClick={handleCreateText} disabled={!token}>
+            <Button type="button" variant="secondary" className="h-10 min-w-0 w-full px-2 text-xs leading-tight sm:w-auto sm:px-4 sm:text-sm" onClick={handleCreateText} disabled={!token}>
               <PlusIcon />
               New note
             </Button>
             {isOwner ? (
-              <Button type="button" variant="secondary" className="h-10 min-w-0 flex-1 px-2 text-xs sm:flex-none sm:px-4 sm:text-sm" onClick={() => void handleDeleteSpace()} disabled={busy}>
+              <Button type="button" variant="secondary" className="col-span-2 h-10 min-w-0 w-full px-2 text-xs leading-tight sm:col-span-1 sm:w-auto sm:px-4 sm:text-sm" onClick={() => void handleDeleteSpace()} disabled={busy}>
                 <TrashIcon />
                 Delete Space
               </Button>
             ) : (
-              <Button type="button" variant="secondary" className="h-10 min-w-0 flex-1 px-2 text-xs sm:flex-none sm:px-4 sm:text-sm" onClick={() => void handleLeave()} disabled={busy}>
+              <Button type="button" variant="secondary" className="col-span-2 h-10 min-w-0 w-full px-2 text-xs leading-tight sm:col-span-1 sm:w-auto sm:px-4 sm:text-sm" onClick={() => void handleLeave()} disabled={busy}>
                 <LogOutIcon />
                 Leave
               </Button>
@@ -578,12 +578,12 @@ export const SpacePage = () => {
         {actionMessage ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{actionMessage}</div> : null}
 
         {loading ? (
-          <div className="grid place-items-center rounded-[2rem] border border-slate-200/80 bg-white/80 py-16 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
+          <div className="grid w-full place-items-center rounded-[2rem] border border-slate-200/80 bg-white/80 py-16 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
             <Spinner />
           </div>
         ) : (
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
-            <div className="space-y-6">
+          <div className="grid w-full min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+            <div className="min-w-0 space-y-6">
               <UploadDropzone
                 onUpload={handleUploadFiles}
                 onBrowse={() => handleFileBrowse('', fileInputRef)}
@@ -614,7 +614,7 @@ export const SpacePage = () => {
               />
             </div>
 
-            <aside className="space-y-4">
+            <aside className="min-w-0 space-y-4">
               <div className="hidden md:block space-y-4">
                 {inviteSection}
                 {membersSection}
