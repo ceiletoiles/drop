@@ -12,6 +12,9 @@ import type { SpaceSummary } from '../../shared/types';
 import { formatRelativeTime, getInitials } from '../lib/format';
 import { getFileTypeLabel, getFileTypeKind } from '../lib/file';
 
+const spacesCache = new Map<string, { spaces: SpaceSummary[]; fetchedAt: number }>();
+const SPACES_CACHE_TTL_MS = 2 * 60 * 1000;
+
 export const SpacesPage = () => {
   const { session, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -29,31 +32,44 @@ export const SpacesPage = () => {
   const [renameLoading, setRenameLoading] = useState(false);
 
   useEffect(() => {
+    const cacheKey = user?.id ? `${user.id}:spaces` : '';
+    const cachedPayload = cacheKey ? spacesCache.get(cacheKey) : undefined;
+
     if (!token) {
       setLoading(false);
       return;
     }
 
     const controller = new AbortController();
-    setLoading(true);
+    if (cachedPayload && Date.now() - cachedPayload.fetchedAt < SPACES_CACHE_TTL_MS) {
+      setSpaces(cachedPayload.spaces);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
     setError(null);
 
     fetchSpaces(token)
       .then((response) => {
         if (!controller.signal.aborted) {
           setSpaces(response.spaces);
+          if (cacheKey) {
+            spacesCache.set(cacheKey, { spaces: response.spaces, fetchedAt: Date.now() });
+          }
           setLoading(false);
         }
       })
       .catch((err: unknown) => {
         if (!controller.signal.aborted) {
-          setError(err instanceof Error ? err.message : 'Failed to load spaces.');
-          setLoading(false);
+          if (!cachedPayload) {
+            setError(err instanceof Error ? err.message : 'Failed to load spaces.');
+            setLoading(false);
+          }
         }
       });
 
     return () => controller.abort();
-  }, [token]);
+  }, [token, user?.id]);
 
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
@@ -90,6 +106,11 @@ export const SpacesPage = () => {
     try {
       setCreateLoading(true);
       const response = await createSpace(token, { name: trimmed });
+      if (user?.id) {
+        const cacheKey = `${user.id}:spaces`;
+        const current = spacesCache.get(cacheKey)?.spaces ?? spaces;
+        spacesCache.set(cacheKey, { spaces: [response.space, ...current], fetchedAt: Date.now() });
+      }
       setCreateOpen(false);
       setName('');
       navigate(`/spaces/${response.space.id}`);
@@ -137,6 +158,14 @@ export const SpacesPage = () => {
       setRenameLoading(true);
       const response = await renameSpace(token, renameSpaceId, trimmed);
       setSpaces((current) => current.map((space) => (space.id === renameSpaceId ? response.space : space)));
+      if (user?.id) {
+        const cacheKey = `${user.id}:spaces`;
+        const current = spacesCache.get(cacheKey)?.spaces ?? spaces;
+        spacesCache.set(cacheKey, {
+          spaces: current.map((space) => (space.id === renameSpaceId ? response.space : space)),
+          fetchedAt: Date.now()
+        });
+      }
       closeRenameSpace();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Rename failed.');
@@ -153,6 +182,11 @@ export const SpacesPage = () => {
     try {
       await deleteSpace(token, space.id);
       setSpaces((current) => current.filter((entry) => entry.id !== space.id));
+      if (user?.id) {
+        const cacheKey = `${user.id}:spaces`;
+        const current = spacesCache.get(cacheKey)?.spaces ?? spaces;
+        spacesCache.set(cacheKey, { spaces: current.filter((entry) => entry.id !== space.id), fetchedAt: Date.now() });
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Delete failed.');
     }
@@ -166,6 +200,11 @@ export const SpacesPage = () => {
     try {
       await leaveSpace(token, space.id);
       setSpaces((current) => current.filter((entry) => entry.id !== space.id));
+      if (user?.id) {
+        const cacheKey = `${user.id}:spaces`;
+        const current = spacesCache.get(cacheKey)?.spaces ?? spaces;
+        spacesCache.set(cacheKey, { spaces: current.filter((entry) => entry.id !== space.id), fetchedAt: Date.now() });
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Leave failed.');
     }
@@ -287,26 +326,28 @@ export const SpacesPage = () => {
                             onMouseDown={(event) => event.stopPropagation()}
                             onClick={(event) => event.stopPropagation()}
                           >
-                            <button
-                              type="button"
-                              className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left hover:bg-slate-100"
-                              onClick={() => openRenameSpace(space)}
-                            >
-                              <PencilIcon className="h-5 w-5" />
-                              Rename
-                            </button>
                             {space.ownerId === user?.id ? (
-                              <button
-                                type="button"
-                                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-rose-600 hover:bg-rose-50"
-                                onClick={() => {
-                                  setMenuState(null);
-                                  void handleDeleteSpace(space);
-                                }}
-                              >
-                                <TrashIcon className="h-5 w-5" />
-                                Delete
-                              </button>
+                              <>
+                                <button
+                                  type="button"
+                                  className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left hover:bg-slate-100"
+                                  onClick={() => openRenameSpace(space)}
+                                >
+                                  <PencilIcon className="h-5 w-5" />
+                                  Rename
+                                </button>
+                                <button
+                                  type="button"
+                                  className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-rose-600 hover:bg-rose-50"
+                                  onClick={() => {
+                                    setMenuState(null);
+                                    void handleDeleteSpace(space);
+                                  }}
+                                >
+                                  <TrashIcon className="h-5 w-5" />
+                                  Delete
+                                </button>
+                              </>
                             ) : (
                               <button
                                 type="button"

@@ -69,6 +69,28 @@ export const SpacePage = () => {
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<'invite' | 'members'>('invite');
 
+  useEffect(() => {
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('[data-space-mobile-menu-toggle], [data-space-mobile-menu-panel]')) return;
+      setMobileMenuOpen(false);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   const uploadBusy = uploadItems.some((item) => item.status === 'queued' || item.status === 'uploading');
   const uploadStatus = uploadItems.length
     ? `${uploadItems.filter((item) => item.status === 'uploading').length} uploading, ${uploadItems.filter((item) => item.status === 'queued').length} queued`
@@ -398,7 +420,7 @@ export const SpacePage = () => {
             variant="secondary"
             className="h-10 rounded-2xl px-2.5 text-[11px] whitespace-nowrap sm:px-3 sm:text-xs"
             onClick={() => void handleCreateInviteLink()}
-            disabled={inviteBusy}
+            disabled={inviteBusy || Boolean(activeInviteUrl)}
           >
             Create invite link
           </Button>
@@ -506,6 +528,7 @@ export const SpacePage = () => {
               aria-label="Space options"
               aria-expanded={mobileMenuOpen}
               onClick={() => setMobileMenuOpen((current) => !current)}
+              data-space-mobile-menu-toggle
             >
               <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <circle cx="12" cy="5" r="1.45" fill="currentColor" stroke="none" />
@@ -514,7 +537,12 @@ export const SpacePage = () => {
               </svg>
             </Button>
             {mobileMenuOpen ? (
-              <div className="absolute right-0 top-full z-20 mt-2 w-48 rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_18px_45px_rgba(15,23,42,0.16)]" role="menu">
+              <div
+                className="absolute right-0 top-full z-20 mt-2 w-48 rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_18px_45px_rgba(15,23,42,0.16)]"
+                role="menu"
+                data-space-mobile-menu-panel
+                onPointerDown={(event) => event.stopPropagation()}
+              >
                 {isOwner ? (
                   <button
                     type="button"

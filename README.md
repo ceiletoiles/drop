@@ -5,7 +5,6 @@ Drop is a lightweight cross-device transfer and scratchpad app built for fast ca
 ## What is in V0.1
 
 - Email/password auth with Supabase Auth
-- Protected dashboard with persistent sessions
 - Text items stored in PostgreSQL
 - File uploads stored privately in Cloudflare R2
 - Recent-items list with search, copy, edit, download, and delete
@@ -18,11 +17,7 @@ Drop is a lightweight cross-device transfer and scratchpad app built for fast ca
 - Multi-file uploads from drag/drop and the file picker
 - Clipboard support for pasted text, pasted images, and pasted files when the browser exposes them
 - Per-file upload progress, success, failure, and cancel states
-- Quick text creation from pasted clipboard text before saving
-- Search across filenames and text content with type filtering for text, files, and images
 - Keyboard shortcuts for upload, new text, search focus, and escape/close behavior
-- Mobile upload actions tuned for quick add-and-go workflows
-- Recent-items cards with lightweight metadata and cleaner action access
 
 ## What is in V0.3
 
@@ -31,8 +26,6 @@ Drop is a lightweight cross-device transfer and scratchpad app built for fast ca
 - Text items can delete after copy
 - File items can delete after download
 - Server-side expiration timestamps and access checks
-- Scheduled cleanup for expired items and retryable R2 deletion
-- Existing items are migrated to `24_HOURS` on the V0.3 schema upgrade
 
 ## What is in V0.4
 
@@ -41,8 +34,6 @@ Drop is a lightweight cross-device transfer and scratchpad app built for fast ca
 - Public `/s/:token` share pages that do not require login
 - Owner-controlled share creation and revocation
 - Shared text copy and shared file download flows
-- Shared download counts for valid file downloads
-- Shared items still obey the existing V0.3 expiration and consume rules
 
 ## What is in V0.5
 
@@ -51,7 +42,6 @@ Drop is a lightweight cross-device transfer and scratchpad app built for fast ca
 - Invite links are stored with the raw token so the same join URL can be reused until the 7-day expiration
 - Full absolute join URLs are shown in the app instead of relative `/join/:token` fragments
 - Pending email-targeted space invites appear in the recipient's account page
-- Space invite panels stay hidden unless there is at least one pending invitation
 
 ## Architecture
 

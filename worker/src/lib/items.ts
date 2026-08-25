@@ -122,18 +122,27 @@ const isExpired = (item: Pick<ItemRow, 'expires_at'>, nowIso = new Date().toISOS
 
 const isActiveItem = (item: ItemRow) => !isExpired(item);
 
-const isMaybeShareToken = (value: string) => /^[A-Za-z0-9_-]{32,128}$/.test(value);
+const SHARE_TOKEN_ALPHABET = '23456789abcdefghjkmnpqrstuvwxyz';
+const SHARE_TOKEN_LENGTH = 6;
 
-const bytesToBase64Url = (bytes: Uint8Array) =>
-  btoa(String.fromCharCode(...bytes))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
+const isMaybeShareToken = (value: string) => /^[A-Za-z0-9_-]{4,128}$/.test(value);
 
 const generateShareToken = () => {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  return bytesToBase64Url(bytes);
+  const chars: string[] = [];
+  const bytes = new Uint8Array(SHARE_TOKEN_LENGTH * 2);
+  const maxAcceptedValue = Math.floor(256 / SHARE_TOKEN_ALPHABET.length) * SHARE_TOKEN_ALPHABET.length;
+
+  while (chars.length < SHARE_TOKEN_LENGTH) {
+    crypto.getRandomValues(bytes);
+
+    for (const byte of bytes) {
+      if (byte >= maxAcceptedValue) continue;
+      chars.push(SHARE_TOKEN_ALPHABET[byte % SHARE_TOKEN_ALPHABET.length]);
+      if (chars.length === SHARE_TOKEN_LENGTH) break;
+    }
+  }
+
+  return chars.join('');
 };
 
 const hashShareToken = async (token: string) => {
