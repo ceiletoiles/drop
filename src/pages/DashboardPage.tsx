@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import { Navigate, useNavigate } from 'react-router-dom';
 import { AppShell } from '../components/layout/AppShell';
 import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { Modal } from '../components/ui/Modal';
+import { Spinner } from '../components/ui/Spinner';
 import {
   ChevronDownIcon,
   FileIcon,
@@ -21,6 +24,7 @@ import { consumeItem, deleteItem, createTextItem, updateExpirationItem, updateTe
 import { RecentItemsList } from '../features/items/RecentItemsList';
 import { ExpirationModal } from '../features/items/ExpirationModal';
 import { TextEditorModal } from '../features/items/TextEditorModal';
+import { NoteViewModal } from '../features/items/NoteViewModal';
 import { ImagePreviewModal } from '../features/items/ImagePreviewModal';
 import { UploadDropzone, type UploadItemState } from '../features/items/UploadDropzone';
 import { useItems } from '../features/items/useItems';
@@ -93,6 +97,10 @@ export const DashboardPage = () => {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
+  const [viewItem, setViewItem] = useState<Item | null>(null);
+  const [renameItem, setRenameItem] = useState<Item | null>(null);
+  const [renameTitle, setRenameTitle] = useState('');
+  const [renameLoading, setRenameLoading] = useState(false);
   const [pendingTextDraft, setPendingTextDraft] = useState<{ title: string; content: string } | null>(null);
   const [newTextExpirationType, setNewTextExpirationType] = useState<ExpirationType>(DEFAULT_EXPIRATION_TYPE);
   const [expirationItem, setExpirationItem] = useState<Item | null>(null);
@@ -172,6 +180,15 @@ export const DashboardPage = () => {
       showAction(error instanceof Error ? error.message : 'Paste failed.');
     }
   }, [openTextDraft, showAction, token]);
+
+  const handleViewText = useCallback((item: Item) => {
+    setViewItem(item);
+  }, []);
+
+  const handleRenameText = useCallback((item: Item) => {
+    setRenameItem(item);
+    setRenameTitle(item.title);
+  }, []);
 
   useEffect(() => {
     if (activeFilter === 'search') {
@@ -287,6 +304,7 @@ export const DashboardPage = () => {
   };
 
   const handleEditText = (item: Item) => {
+    setViewItem(null);
     setEditingItem(item);
     setPendingTextDraft(null);
     setEditorOpen(true);
@@ -309,6 +327,28 @@ export const DashboardPage = () => {
 
     setPendingTextDraft(null);
     refresh();
+  };
+
+  const handleSaveRename = async () => {
+    if (!token || !renameItem) return;
+    const title = renameTitle.trim();
+    if (!title) {
+      showAction('Enter a title.');
+      return;
+    }
+
+    try {
+      setRenameLoading(true);
+      await updateTextItem(token, renameItem.id, { title });
+      setRenameItem(null);
+      setViewItem(null);
+      refresh();
+      showAction('Title updated.');
+    } catch (error) {
+      showAction(error instanceof Error ? error.message : 'Rename failed.');
+    } finally {
+      setRenameLoading(false);
+    }
   };
 
   const handleDelete = async (item: Item) => {
@@ -886,23 +926,23 @@ export const DashboardPage = () => {
               </div>
             </div>
 
-            <RecentItemsList
-              items={filteredItems}
-              loading={loading}
-              query={query}
-              sortOrder={sortOrder}
-              activeFilter={activeFilter}
-              message={actionMessage}
-              onQueryChange={setQuery}
-              onSortChange={setSortOrder}
-              onFocusSearch={() => searchInputRef.current?.focus()}
-              searchInputRef={searchInputRef}
-              onEditText={handleEditText}
-              onCopyText={handleCopy}
-              onDelete={handleDelete}
-              onDownload={handleDownload}
-              onPreview={handlePreview}
-              onShare={handleShare}
+              <RecentItemsList
+                items={filteredItems}
+                loading={loading}
+                query={query}
+                sortOrder={sortOrder}
+                activeFilter={activeFilter}
+                message={actionMessage}
+                onQueryChange={setQuery}
+                onSortChange={setSortOrder}
+                onFocusSearch={() => searchInputRef.current?.focus()}
+                searchInputRef={searchInputRef}
+                onViewText={handleViewText}
+                onCopyText={handleCopy}
+                onDelete={handleDelete}
+                onDownload={handleDownload}
+                onPreview={handlePreview}
+                onShare={handleShare}
               onChangeExpiration={handleChangeExpiration}
             />
 
@@ -1147,6 +1187,61 @@ export const DashboardPage = () => {
           }
         }}
       />
+      <NoteViewModal
+        open={Boolean(viewItem)}
+        item={viewItem}
+        onClose={() => setViewItem(null)}
+        onEdit={(item) => {
+          setViewItem(null);
+          handleEditText(item);
+        }}
+        onRenameTitle={(item) => {
+          setViewItem(null);
+          handleRenameText(item);
+        }}
+        onDelete={(item) => {
+          setViewItem(null);
+          void handleDelete(item);
+        }}
+      />
+      <Modal
+        title="Rename title"
+        open={Boolean(renameItem)}
+        onClose={() => {
+          setRenameItem(null);
+          setRenameTitle('');
+        }}
+        footer={
+          <div className="flex items-center justify-end gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setRenameItem(null);
+                setRenameTitle('');
+              }}
+              disabled={renameLoading}
+            >
+              Cancel
+            </Button>
+            <Button type="button" onClick={() => void handleSaveRename()} disabled={renameLoading}>
+              {renameLoading ? <Spinner /> : 'Save'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <label className="block space-y-2">
+            <span className="text-sm font-medium text-slate-700">Title</span>
+            <Input
+              value={renameTitle}
+              onChange={(event) => setRenameTitle(event.target.value)}
+              placeholder="Untitled note"
+              autoFocus
+            />
+          </label>
+        </div>
+      </Modal>
       <ExpirationModal
         open={Boolean(expirationItem)}
         item={expirationItem}

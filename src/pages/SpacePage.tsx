@@ -7,6 +7,7 @@ import { Modal } from '../components/ui/Modal';
 import { Spinner } from '../components/ui/Spinner';
 import { LogOutIcon, PlusIcon, TrashIcon, UploadIcon } from '../components/ui/Icon';
 import { useAuth } from '../features/auth/auth-context';
+import { NoteViewModal } from '../features/items/NoteViewModal';
 import { ImagePreviewModal } from '../features/items/ImagePreviewModal';
 import { UploadDropzone, type UploadItemState } from '../features/items/UploadDropzone';
 import { RecentItemsList } from '../features/items/RecentItemsList';
@@ -59,6 +60,10 @@ export const SpacePage = () => {
   const [uploadItems, setUploadItems] = useState<UploadItemState[]>([]);
   const [draftOpen, setDraftOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
+  const [viewItem, setViewItem] = useState<Item | null>(null);
+  const [renameItem, setRenameItem] = useState<Item | null>(null);
+  const [renameTitle, setRenameTitle] = useState('');
+  const [renameLoading, setRenameLoading] = useState(false);
   const [pendingTextDraft, setPendingTextDraft] = useState<SpaceTextDraft>(null);
   const [textExpirationType, setTextExpirationType] = useState<(typeof SPACE_EXPIRATION_TYPES)[number]>('24_HOURS');
   const [expirationItem, setExpirationItem] = useState<Item | null>(null);
@@ -237,10 +242,20 @@ export const SpacePage = () => {
   };
 
   const handleEditText = (item: Item) => {
+    setViewItem(null);
     setEditingItem(item);
     setPendingTextDraft(null);
     setDraftOpen(true);
   };
+
+  const handleViewText = useCallback((item: Item) => {
+    setViewItem(item);
+  }, []);
+
+  const handleRenameText = useCallback((item: Item) => {
+    setRenameItem(item);
+    setRenameTitle(item.title);
+  }, []);
 
   const handleSaveText = async (payload: { id?: string; title: string; content: string }) => {
     if (!token || !spaceId) throw new Error('Missing session.');
@@ -344,6 +359,28 @@ export const SpacePage = () => {
 
   const handleChangeExpiration = (item: Item) => {
     setExpirationItem(item);
+  };
+
+  const handleSaveRename = async () => {
+    if (!token || !spaceId || !renameItem) return;
+    const title = renameTitle.trim();
+    if (!title) {
+      showAction('Enter a title.');
+      return;
+    }
+
+    try {
+      setRenameLoading(true);
+      await updateSpaceText(token, spaceId, renameItem.id, { title });
+      setRenameItem(null);
+      setViewItem(null);
+      await refresh();
+      showAction('Title updated.');
+    } catch (error) {
+      showAction(error instanceof Error ? error.message : 'Rename failed.');
+    } finally {
+      setRenameLoading(false);
+    }
   };
 
   const filteredItems = useMemo(() => {
@@ -662,13 +699,13 @@ export const SpacePage = () => {
                 onQueryChange={setQuery}
                 onSortChange={setSortOrder}
                 onFocusSearch={() => undefined}
-              onEditText={handleEditText}
-              onCopyText={handleCopy}
-              onDelete={handleDelete}
-              onDownload={handleDownload}
-              onPreview={handlePreview}
-              onChangeExpiration={handleChangeExpiration}
-            />
+                onViewText={handleViewText}
+                onCopyText={handleCopy}
+                onDelete={handleDelete}
+                onDownload={handleDownload}
+                onPreview={handlePreview}
+                onChangeExpiration={handleChangeExpiration}
+              />
             </div>
 
             <aside className="min-w-0 space-y-4">
@@ -708,6 +745,61 @@ export const SpacePage = () => {
         onExpirationTypeChange={(value) => setTextExpirationType(value as (typeof SPACE_EXPIRATION_TYPES)[number])}
         allowConsume={false}
       />
+      <NoteViewModal
+        open={Boolean(viewItem)}
+        item={viewItem}
+        onClose={() => setViewItem(null)}
+        onEdit={(item) => {
+          setViewItem(null);
+          handleEditText(item);
+        }}
+        onRenameTitle={(item) => {
+          setViewItem(null);
+          handleRenameText(item);
+        }}
+        onDelete={(item) => {
+          setViewItem(null);
+          void handleDelete(item);
+        }}
+      />
+      <Modal
+        title="Rename title"
+        open={Boolean(renameItem)}
+        onClose={() => {
+          setRenameItem(null);
+          setRenameTitle('');
+        }}
+        footer={
+          <div className="flex items-center justify-end gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setRenameItem(null);
+                setRenameTitle('');
+              }}
+              disabled={renameLoading}
+            >
+              Cancel
+            </Button>
+            <Button type="button" onClick={() => void handleSaveRename()} disabled={renameLoading}>
+              {renameLoading ? <Spinner /> : 'Save'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <label className="block space-y-2">
+            <span className="text-sm font-medium text-slate-700">Title</span>
+            <Input
+              value={renameTitle}
+              onChange={(event) => setRenameTitle(event.target.value)}
+              placeholder="Untitled note"
+              autoFocus
+            />
+          </label>
+        </div>
+      </Modal>
 
       <ExpirationModal
         open={Boolean(expirationItem)}

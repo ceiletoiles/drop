@@ -67,7 +67,7 @@ export const TextEditorModal = ({
       onClose={onClose}
       footer={
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="text-sm text-slate-500">{item ? 'Editing an existing note.' : 'Create and save a note quickly.'}</div>
+          <div className="text-sm text-slate-500">{item ? 'Edit the note body and title.' : 'Write the note, then save it.'}</div>
           <div className="flex items-center gap-3">
             {item && onDelete ? (
               <Button type="button" variant="danger" onClick={() => void onDelete(item.id)} disabled={loading}>
@@ -87,7 +87,12 @@ export const TextEditorModal = ({
       <div className="space-y-4">
         <label className="block space-y-2">
           <span className="text-sm font-medium text-slate-700">Title</span>
-          <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Untitled note" />
+          <Input
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="Untitled note"
+            className="bg-slate-50/80"
+          />
         </label>
         <label className="block space-y-2">
           <span className="text-sm font-medium text-slate-700">Content</span>
@@ -96,10 +101,11 @@ export const TextEditorModal = ({
             onChange={(event) => setContent(event.target.value)}
             placeholder="Paste text here..."
             autoFocus
+            className="min-h-[24rem] bg-slate-50/80 font-sans text-[15px] leading-7"
           />
         </label>
         {item ? (
-          <div className="rounded-2xl border border-slate-200/80 bg-white/70 px-4 py-3 text-sm text-slate-600 shadow-sm">
+          <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 px-4 py-3 text-sm text-slate-600 shadow-sm">
             <p className="font-medium text-slate-900">Expiration</p>
             <p className="mt-1">{getExpirationSummary(item.expirationType, item.expiresAt, item.type)}</p>
           </div>

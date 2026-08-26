@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { Spinner } from '../../components/ui/Spinner';
-import { CalendarIcon, ClockIcon, CopyIcon, DownloadIcon, FileIcon, ImageIcon, ListIcon, LockIcon, MoreHorizontalIcon, PencilIcon, SearchIcon, ShareIcon, SortIcon, TextIcon, TrashIcon } from '../../components/ui/Icon';
+import { CalendarIcon, ClockIcon, CopyIcon, DownloadIcon, FileIcon, ImageIcon, ListIcon, LockIcon, MoreHorizontalIcon, PencilIcon, SearchIcon, ShareIcon, SortIcon, TrashIcon } from '../../components/ui/Icon';
 import { FileTypeIcon } from '../../components/ui/FileTypeIcon';
 import { formatFileSize, formatRelativeTime } from '../../lib/format';
 import { getFileTypeKind, getFileTypeLabel } from '../../lib/file';
@@ -23,7 +23,7 @@ interface RecentItemsListProps {
   onQueryChange: (value: string) => void;
   onSortChange: (value: 'newest' | 'oldest') => void;
   onFocusSearch: () => void;
-  onEditText: (item: Item) => void;
+  onViewText: (item: Item) => void;
   onCopyText: (item: Item) => Promise<void>;
   onDelete: (item: Item) => Promise<void>;
   onDownload: (item: Item) => Promise<void>;
@@ -44,7 +44,7 @@ export const RecentItemsList = ({
   onQueryChange,
   onSortChange,
   onFocusSearch,
-  onEditText,
+  onViewText,
   onCopyText,
   onDelete,
   onDownload,
@@ -272,7 +272,7 @@ export const RecentItemsList = ({
                   <button
                     type="button"
                     onClick={() => {
-                      if (isText) onEditText(item);
+                      if (isText) onViewText(item);
                       if (!isText) void onDownload(item);
                     }}
                     className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden text-left"
@@ -379,22 +379,11 @@ export const RecentItemsList = ({
                                 className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left hover:bg-slate-100"
                                 onClick={() => {
                                   setMenuState(null);
-                                  setInfoItem(item);
+                                  onViewText(item);
                                 }}
                               >
                                 <ListIcon className="h-5 w-5" />
-                                Info
-                              </button>
-                              <button
-                                type="button"
-                                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left hover:bg-slate-100"
-                                onClick={() => {
-                                  setMenuState(null);
-                                  onEditText(item);
-                                }}
-                              >
-                                <TextIcon className="h-5 w-5" />
-                                Edit
+                                View
                               </button>
                               <button
                                 type="button"
