@@ -21,6 +21,7 @@ import { consumeItem, deleteItem, createTextItem, updateExpirationItem, updateTe
 import { RecentItemsList } from '../features/items/RecentItemsList';
 import { ExpirationModal } from '../features/items/ExpirationModal';
 import { TextEditorModal } from '../features/items/TextEditorModal';
+import { ImagePreviewModal } from '../features/items/ImagePreviewModal';
 import { UploadDropzone, type UploadItemState } from '../features/items/UploadDropzone';
 import { useItems } from '../features/items/useItems';
 import { createShare, fetchItemShare, revokeShare } from '../features/share/share-api';
@@ -28,6 +29,7 @@ import { ShareModal } from '../features/share/ShareModal';
 import type { Item } from '../features/items/types';
 import { apiUrl } from '../lib/env';
 import { getFileTypeKind } from '../lib/file';
+import { readApiError } from '../lib/http';
 import { ApiBaseUrlBanner } from '../features/settings/ApiBaseUrlBanner';
 import { formatFileSize, getInitials } from '../lib/format';
 import { needsApiOverride } from '../lib/api-config';
@@ -99,6 +101,10 @@ export const DashboardPage = () => {
   const [shareDownloadCount, setShareDownloadCount] = useState<number | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
+  const [previewItem, setPreviewItem] = useState<Item | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [uploadItems, setUploadItems] = useState<UploadItemState[]>([]);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -108,6 +114,7 @@ export const DashboardPage = () => {
   const uploadControllersRef = useRef(new Map<string, AbortController>());
   const shareLinkCacheRef = useRef(new Map<string, string>());
   const shareRequestRef = useRef<string | null>(null);
+  const previewRequestRef = useRef(0);
   const clipboardPasteHandlerRef = useRef<(event: ClipboardEvent) => void>(() => undefined);
   const apiConfigured = !needsApiOverride();
   const { items, loading, error, refresh } = useItems(session?.access_token ?? null, '', apiConfigured);
@@ -137,6 +144,14 @@ export const DashboardPage = () => {
     setActionMessage(message);
     window.setTimeout(() => setActionMessage(null), 2500);
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        window.URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   const openTextDraft = useCallback((content: string) => {
     const normalized = content.replace(/\r\n/g, '\n');
@@ -369,6 +384,56 @@ export const DashboardPage = () => {
       showAction(error instanceof Error ? error.message : 'Download failed.');
     }
   };
+
+  const handlePreview = useCallback(
+    async (item: Item) => {
+      if (!token || item.type !== 'file') return;
+      if (getFileTypeKind({ filename: item.file?.originalName, mimeType: item.file?.mimeType }) !== 'image') return;
+
+      const requestId = ++previewRequestRef.current;
+      setPreviewItem(item);
+      setPreviewLoading(true);
+      setPreviewError(null);
+      setPreviewUrl(null);
+
+      try {
+        const response = await fetch(apiUrl(`/api/files/${item.id}/download`), {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+
+        if (!response.ok) {
+          throw await readApiError(response);
+        }
+
+        const blob = await response.blob();
+        const objectUrl = window.URL.createObjectURL(blob);
+        if (previewRequestRef.current !== requestId) {
+          window.URL.revokeObjectURL(objectUrl);
+          return;
+        }
+
+        setPreviewUrl(objectUrl);
+      } catch (error) {
+        if (previewRequestRef.current !== requestId) return;
+        setPreviewError(error instanceof Error ? error.message : 'Preview failed.');
+      } finally {
+        if (previewRequestRef.current === requestId) {
+          setPreviewLoading(false);
+        }
+      }
+    },
+    [token]
+  );
+
+  const closePreview = useCallback(() => {
+    previewRequestRef.current += 1;
+    setPreviewItem(null);
+    setPreviewUrl(null);
+    setPreviewLoading(false);
+    setPreviewError(null);
+  }, []);
 
   const addUploadItem = (file: File): string => {
     const id = crypto.randomUUID();
@@ -836,6 +901,7 @@ export const DashboardPage = () => {
               onCopyText={handleCopy}
               onDelete={handleDelete}
               onDownload={handleDownload}
+              onPreview={handlePreview}
               onShare={handleShare}
               onChangeExpiration={handleChangeExpiration}
             />
@@ -1104,6 +1170,14 @@ export const DashboardPage = () => {
         onCreateLink={handleCreateShareLink}
         onCopyLink={handleCopyShareLink}
         onRevoke={handleRevokeShare}
+      />
+      <ImagePreviewModal
+        open={Boolean(previewItem)}
+        item={previewItem}
+        imageUrl={previewUrl}
+        loading={previewLoading}
+        error={previewError}
+        onClose={closePreview}
       />
 
       <input

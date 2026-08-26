@@ -4,10 +4,10 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { Spinner } from '../../components/ui/Spinner';
-import { CalendarIcon, ClockIcon, CopyIcon, DownloadIcon, FileIcon, ListIcon, LockIcon, MoreHorizontalIcon, PencilIcon, SearchIcon, ShareIcon, SortIcon, TextIcon, TrashIcon } from '../../components/ui/Icon';
+import { CalendarIcon, ClockIcon, CopyIcon, DownloadIcon, FileIcon, ImageIcon, ListIcon, LockIcon, MoreHorizontalIcon, PencilIcon, SearchIcon, ShareIcon, SortIcon, TextIcon, TrashIcon } from '../../components/ui/Icon';
 import { FileTypeIcon } from '../../components/ui/FileTypeIcon';
 import { formatFileSize, formatRelativeTime } from '../../lib/format';
-import { getFileTypeLabel } from '../../lib/file';
+import { getFileTypeKind, getFileTypeLabel } from '../../lib/file';
 import { clsx } from 'clsx';
 import { getExpirationSummary } from '../../lib/expiration';
 
@@ -27,6 +27,7 @@ interface RecentItemsListProps {
   onCopyText: (item: Item) => Promise<void>;
   onDelete: (item: Item) => Promise<void>;
   onDownload: (item: Item) => Promise<void>;
+  onPreview?: (item: Item) => void;
   onShare?: (item: Item) => void;
   onChangeExpiration: (item: Item) => void;
 }
@@ -47,6 +48,7 @@ export const RecentItemsList = ({
   onCopyText,
   onDelete,
   onDownload,
+  onPreview,
   onShare,
   onChangeExpiration
 }: RecentItemsListProps) => {
@@ -93,7 +95,8 @@ export const RecentItemsList = ({
   const toggleMenu = (event: ReactMouseEvent<HTMLButtonElement>, item: Item) => {
     const anchor = event.currentTarget.getBoundingClientRect();
     const menuWidth = 180;
-    const menuHeight = item.type === 'text' ? 136 : 96;
+    const isImage = item.type === 'file' && getFileTypeKind({ filename: item.file?.originalName, mimeType: item.file?.mimeType }) === 'image';
+    const menuHeight = item.type === 'text' || (isImage && onPreview) ? 136 : 96;
     const viewportPadding = 8;
     const left = Math.min(Math.max(anchor.right - menuWidth, viewportPadding), window.innerWidth - menuWidth - viewportPadding);
     const belowTop = anchor.bottom + viewportPadding;
@@ -260,6 +263,7 @@ export const RecentItemsList = ({
         <ul className="min-w-0 divide-y divide-slate-200 border-t border-slate-200">
           {items.map((item) => {
             const isText = item.type === 'text';
+            const isImage = item.type === 'file' && getFileTypeKind({ filename: item.file?.originalName, mimeType: item.file?.mimeType }) === 'image';
             const isMenuOpen = menuState?.itemId === item.id;
 
             return (
@@ -391,6 +395,53 @@ export const RecentItemsList = ({
                               >
                                 <TextIcon className="h-5 w-5" />
                                 Edit
+                              </button>
+                              <button
+                                type="button"
+                                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left hover:bg-slate-100"
+                                onClick={() => {
+                                  setMenuState(null);
+                                  onChangeExpiration(item);
+                                }}
+                              >
+                                <PencilIcon className="h-5 w-5" />
+                                Change expiration
+                              </button>
+                              <button
+                                type="button"
+                                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-rose-600 hover:bg-rose-50"
+                                onClick={() => {
+                                  setMenuState(null);
+                                  void onDelete(item);
+                                }}
+                              >
+                                <TrashIcon className="h-5 w-5" />
+                                Delete
+                              </button>
+                            </>
+                          ) : isImage && onPreview ? (
+                            <>
+                              <button
+                                type="button"
+                                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left hover:bg-slate-100"
+                                onClick={() => {
+                                  setMenuState(null);
+                                  onPreview?.(item);
+                                }}
+                              >
+                                <ImageIcon className="h-5 w-5" />
+                                Preview
+                              </button>
+                              <button
+                                type="button"
+                                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left hover:bg-slate-100"
+                                onClick={() => {
+                                  setMenuState(null);
+                                  setInfoItem(item);
+                                }}
+                              >
+                                <ListIcon className="h-5 w-5" />
+                                Info
                               </button>
                               <button
                                 type="button"

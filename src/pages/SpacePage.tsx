@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { AppShell } from '../components/layout/AppShell';
 import { Button } from '../components/ui/Button';
@@ -7,6 +7,7 @@ import { Modal } from '../components/ui/Modal';
 import { Spinner } from '../components/ui/Spinner';
 import { LogOutIcon, PlusIcon, TrashIcon, UploadIcon } from '../components/ui/Icon';
 import { useAuth } from '../features/auth/auth-context';
+import { ImagePreviewModal } from '../features/items/ImagePreviewModal';
 import { UploadDropzone, type UploadItemState } from '../features/items/UploadDropzone';
 import { RecentItemsList } from '../features/items/RecentItemsList';
 import { TextEditorModal } from '../features/items/TextEditorModal';
@@ -63,11 +64,16 @@ export const SpacePage = () => {
   const [expirationItem, setExpirationItem] = useState<Item | null>(null);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteBusy, setInviteBusy] = useState(false);
+  const [previewItem, setPreviewItem] = useState<Item | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<'invite' | 'members'>('invite');
+  const previewRequestRef = useRef(0);
 
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
@@ -90,6 +96,14 @@ export const SpacePage = () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        window.URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   const uploadBusy = uploadItems.some((item) => item.status === 'queued' || item.status === 'uploading');
   const uploadStatus = uploadItems.length
@@ -274,6 +288,48 @@ export const SpacePage = () => {
       showAction(err instanceof Error ? err.message : 'Download failed.');
     }
   };
+
+  const handlePreview = useCallback(
+    async (item: Item) => {
+      if (!token || !spaceId || item.type !== 'file') return;
+      const isImage = item.file?.mimeType?.startsWith('image/') || item.file?.originalName?.match(/\.(png|jpe?g|gif|webp|avif|bmp|tiff?|svg)$/i);
+      if (!isImage) return;
+
+      const requestId = ++previewRequestRef.current;
+      setPreviewItem(item);
+      setPreviewLoading(true);
+      setPreviewError(null);
+      setPreviewUrl(null);
+
+      try {
+        const response = await downloadSpaceItem(token, spaceId, item.id);
+        const blob = await response.blob();
+        const objectUrl = window.URL.createObjectURL(blob);
+        if (previewRequestRef.current !== requestId) {
+          window.URL.revokeObjectURL(objectUrl);
+          return;
+        }
+
+        setPreviewUrl(objectUrl);
+      } catch (error) {
+        if (previewRequestRef.current !== requestId) return;
+        setPreviewError(error instanceof Error ? error.message : 'Preview failed.');
+      } finally {
+        if (previewRequestRef.current === requestId) {
+          setPreviewLoading(false);
+        }
+      }
+    },
+    [spaceId, token]
+  );
+
+  const closePreview = useCallback(() => {
+    previewRequestRef.current += 1;
+    setPreviewItem(null);
+    setPreviewUrl(null);
+    setPreviewLoading(false);
+    setPreviewError(null);
+  }, []);
 
   const handleCopy = async (item: Item) => {
     if (!token || !spaceId || !item.text?.content) return;
@@ -606,12 +662,13 @@ export const SpacePage = () => {
                 onQueryChange={setQuery}
                 onSortChange={setSortOrder}
                 onFocusSearch={() => undefined}
-                onEditText={handleEditText}
-                onCopyText={handleCopy}
-                onDelete={handleDelete}
-                onDownload={handleDownload}
-                onChangeExpiration={handleChangeExpiration}
-              />
+              onEditText={handleEditText}
+              onCopyText={handleCopy}
+              onDelete={handleDelete}
+              onDownload={handleDownload}
+              onPreview={handlePreview}
+              onChangeExpiration={handleChangeExpiration}
+            />
             </div>
 
             <aside className="min-w-0 space-y-4">
@@ -671,6 +728,14 @@ export const SpacePage = () => {
       >
         {mobilePanel === 'invite' && isOwner ? inviteSection : membersSection}
       </Modal>
+      <ImagePreviewModal
+        open={Boolean(previewItem)}
+        item={previewItem}
+        imageUrl={previewUrl}
+        loading={previewLoading}
+        error={previewError}
+        onClose={closePreview}
+      />
     </AppShell>
   );
 };
