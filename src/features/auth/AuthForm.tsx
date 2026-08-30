@@ -17,6 +17,8 @@ export const AuthForm = ({ mode }: AuthFormProps) => {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  const isNativeAuthCancellation = (err: unknown) => err instanceof Error && err.message === 'Google sign-in was cancelled.';
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
@@ -45,7 +47,12 @@ export const AuthForm = ({ mode }: AuthFormProps) => {
     try {
       await signInWithGoogle();
     } catch (err: unknown) {
+      if (isNativeAuthCancellation(err)) {
+        return;
+      }
+
       setError(err instanceof Error ? err.message : 'Google sign-in failed.');
+    } finally {
       setLoading(false);
     }
   };

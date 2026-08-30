@@ -13,6 +13,13 @@
     "worker:deploy": "wrangler deploy"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/browser": "^8.0.4",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/filesystem": "^8.1.3",
+    "@capacitor/splash-screen": "^8.0.2",
     "@react-symbols/icons": "^1.4.1",
     "@supabase/supabase-js": "^2.57.4",
     "clsx": "^2.1.1",

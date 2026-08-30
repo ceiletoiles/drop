@@ -1,5 +1,6 @@
 import { lazy, Suspense, type ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { AndroidBackButtonHandler } from './components/navigation/AndroidBackButtonHandler';
 import { useAuth } from './features/auth/auth-context';
 import { Spinner } from './components/ui/Spinner';
 
@@ -40,90 +41,93 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
 };
 
 export const App = () => (
-  <Routes>
-    <Route
-      path="/login"
-      element={
-        <AuthRoute>
+  <>
+    <AndroidBackButtonHandler />
+    <Routes>
+      <Route
+        path="/login"
+        element={
+          <AuthRoute>
+            <Suspense fallback={<LoadingScreen />}>
+              <LoginPage />
+            </Suspense>
+          </AuthRoute>
+        }
+      />
+      <Route
+        path="/signup"
+        element={
+          <AuthRoute>
+            <Suspense fallback={<LoadingScreen />}>
+              <SignupPage />
+            </Suspense>
+          </AuthRoute>
+        }
+      />
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <Suspense fallback={<LoadingScreen />}>
+              <DashboardPage />
+            </Suspense>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/account"
+        element={
+          <ProtectedRoute>
+            <Suspense fallback={<LoadingScreen />}>
+              <AccountPage />
+            </Suspense>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/spaces"
+        element={
+          <ProtectedRoute>
+            <Suspense fallback={<LoadingScreen />}>
+              <SpacesPage />
+            </Suspense>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/spaces/:spaceId"
+        element={
+          <ProtectedRoute>
+            <Suspense fallback={<LoadingScreen />}>
+              <SpacePage />
+            </Suspense>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/join/:token"
+        element={
           <Suspense fallback={<LoadingScreen />}>
-            <LoginPage />
+            <JoinSpacePage />
           </Suspense>
-        </AuthRoute>
-      }
-    />
-    <Route
-      path="/signup"
-      element={
-        <AuthRoute>
+        }
+      />
+      <Route
+        path="/s/:token"
+        element={
           <Suspense fallback={<LoadingScreen />}>
-            <SignupPage />
+            <SharePage />
           </Suspense>
-        </AuthRoute>
-      }
-    />
-    <Route
-      path="/"
-      element={
-        <ProtectedRoute>
+        }
+      />
+      <Route
+        path="*"
+        element={
           <Suspense fallback={<LoadingScreen />}>
-            <DashboardPage />
+            <NotFoundPage />
           </Suspense>
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/account"
-      element={
-        <ProtectedRoute>
-          <Suspense fallback={<LoadingScreen />}>
-            <AccountPage />
-          </Suspense>
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/spaces"
-      element={
-        <ProtectedRoute>
-          <Suspense fallback={<LoadingScreen />}>
-            <SpacesPage />
-          </Suspense>
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/spaces/:spaceId"
-      element={
-        <ProtectedRoute>
-          <Suspense fallback={<LoadingScreen />}>
-            <SpacePage />
-          </Suspense>
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/join/:token"
-      element={
-        <Suspense fallback={<LoadingScreen />}>
-          <JoinSpacePage />
-        </Suspense>
-      }
-    />
-    <Route
-      path="/s/:token"
-      element={
-        <Suspense fallback={<LoadingScreen />}>
-          <SharePage />
-        </Suspense>
-      }
-    />
-    <Route
-      path="*"
-      element={
-        <Suspense fallback={<LoadingScreen />}>
-          <NotFoundPage />
-        </Suspense>
-      }
-    />
-  </Routes>
+        }
+      />
+    </Routes>
+  </>
 );

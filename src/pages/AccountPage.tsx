@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useItems } from '../features/items/useItems';
 import { isImageFile } from '../lib/file';
 import { fetchMySpaceInvitations } from '../features/spaces/spaces-api';
+import { resolveAppUrl } from '../lib/app-url';
 
 type StorageCategory = 'files' | 'images' | 'text' | 'other';
 
@@ -299,7 +300,7 @@ export const AccountPage = () => {
               ) : (
                 <div className="mt-4 space-y-2">
                   {spaceInvitations.map(({ space, invitation }) => {
-                    const inviteHref = invitation.token ? `/join/${invitation.token}` : invitation.url ?? '';
+                    const inviteHref = resolveAppUrl(invitation.token ? `/join/${invitation.token}` : invitation.url ?? '');
                     return (
                       <div key={invitation.id} className="flex flex-col gap-3 rounded-[1rem] border border-slate-200/80 bg-white/75 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                         <div className="min-w-0">
@@ -337,12 +338,7 @@ export const AccountPage = () => {
               </button>
             </div>
 
-            {activityLoading ? (
-              <div className="mt-4 flex items-center justify-center gap-2 py-4 text-sm text-slate-500">
-                <Spinner />
-                Loading activity
-              </div>
-            ) : activityError ? (
+            {activityError ? (
               <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-6 text-sm text-rose-700">
                 {activityError}
               </div>
@@ -358,7 +354,7 @@ export const AccountPage = () => {
                   </div>
                 ))}
               </div>
-            ) : (
+            ) : activityLoading ? null : (
               <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
                 No activity yet.
               </div>
@@ -455,12 +451,7 @@ export const AccountPage = () => {
         <div className="space-y-4">
           <p className="text-sm text-slate-500">Showing the latest 20 activity events.</p>
 
-          {activityLoading ? (
-            <div className="flex items-center justify-center gap-2 py-6 text-sm text-slate-500">
-              <Spinner />
-              Loading activity
-            </div>
-          ) : activityError ? (
+          {activityError ? (
             <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-6 text-sm text-rose-700">
               {activityError}
             </div>
@@ -476,7 +467,7 @@ export const AccountPage = () => {
                 </div>
               ))}
             </div>
-          ) : (
+          ) : activityLoading ? null : (
             <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
               No activity yet.
             </div>

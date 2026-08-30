@@ -31,6 +31,8 @@ import {
 } from '../features/spaces/spaces-api';
 import type { SpaceDetailResponse } from '../../shared/types';
 import { getInitials } from '../lib/format';
+import { downloadBlob } from '../lib/download';
+import { resolveAppUrl } from '../lib/app-url';
 import { SPACE_EXPIRATION_TYPES } from '../../shared/constants';
 
 type SpaceTextDraft = { title: string; content: string } | null;
@@ -122,7 +124,7 @@ export const SpacePage = () => {
         const invitePath = invite.url ?? (invite.token ? `/join/${invite.token}` : '');
         if (!invitePath) return null;
         try {
-          return new URL(invitePath, window.location.origin).toString();
+          return resolveAppUrl(invitePath);
         } catch {
           return invitePath;
         }
@@ -292,13 +294,8 @@ export const SpacePage = () => {
     try {
       const response = await downloadSpaceItem(token, spaceId, item.id);
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = item.file?.originalName ?? item.title;
-      link.click();
-      window.URL.revokeObjectURL(url);
-      showAction('Download started.');
+      const result = await downloadBlob(blob, item.file?.originalName ?? item.title);
+      showAction(result.savedOnDevice ? 'Saved to device storage.' : 'Download started.');
     } catch (err: unknown) {
       showAction(err instanceof Error ? err.message : 'Download failed.');
     }

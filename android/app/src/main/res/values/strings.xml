@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">drop</string>
+    <string name="title_activity_main">drop</string>
+    <string name="package_name">com.shiv.drop</string>
+    <string name="custom_url_scheme">com.shiv.drop</string>
+</resources>

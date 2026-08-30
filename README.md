@@ -1,6 +1,17 @@
 # Drop
 
 Drop is a lightweight cross-device transfer and scratchpad app built for fast capture, recent-first retrieval, and private per-user file access.
+It now ships as both a web app and an Android app through Capacitor.
+
+## What is in V1
+
+- React + TypeScript + Vite web app
+- Capacitor Android app generated from the same codebase
+- Native Android Google sign-in using Credential Manager and Supabase ID-token auth
+- Native file and image downloads on Android
+- Shared Supabase session persistence across web and mobile
+- The existing web Google login flow remains unchanged
+- The original V0.x features remain available across the product
 
 ## What is in V0.1
 
@@ -46,15 +57,18 @@ Drop is a lightweight cross-device transfer and scratchpad app built for fast ca
 ## Architecture
 
 - Frontend: React, TypeScript, Vite, Tailwind CSS
+- Mobile wrapper: Capacitor Android
 - Backend/API: Cloudflare Workers
 - Auth and database: Supabase Auth + Supabase PostgreSQL
 - Object storage: Cloudflare R2
 
-The frontend talks to the Worker over `/api` endpoints. In local development you can either proxy `/api` through Vite or point the frontend at the Worker with `VITE_API_BASE_URL`.
+The web app talks to the Worker over `/api` endpoints. In local development you can either proxy `/api` through Vite or point the frontend at the Worker with `VITE_API_BASE_URL`.
+The Android app loads the same Vite build inside Capacitor and uses a small native bridge only where Android-specific behavior is required.
 
 ## Repository structure
 
 - `src/` - React app, UI components, auth, and item features
+- `android/` - Capacitor Android project
 - `worker/` - Cloudflare Worker API
 - `shared/` - shared types, constants, schemas, and utility helpers
 - `supabase/migrations/` - SQL migrations for the core schema and V0.3 expiration upgrade
@@ -66,6 +80,7 @@ The frontend talks to the Worker over `/api` endpoints. In local development you
 - A Supabase project
 - A Cloudflare account with R2 enabled
 - Wrangler CLI credentials configured locally
+- Android Studio for the Android app
 
 ## Local setup
 
@@ -85,17 +100,27 @@ copy .env.example .env.production
 3. Fill in your Supabase values in both files.
 4. Keep `VITE_API_BASE_URL` as localhost in `.env.local`.
 5. Set `VITE_API_BASE_URL` to the deployed Worker URL in `.env.production`.
+6. Set `VITE_APP_ORIGIN` to the public web app URL in your production env if you want native share and invite links to point at the website instead of the Capacitor origin.
+7. Set `VITE_GOOGLE_WEB_CLIENT_ID` to your Google OAuth Web client ID for native Android Google sign-in.
 
-6. Run the Worker in one terminal:
+8. Run the Worker in one terminal:
 
 ```bash
 npm run worker:dev
 ```
 
-7. Run the Vite app in another terminal:
+9. Run the Vite app in another terminal:
 
 ```bash
 npm run dev
+```
+
+For the Android app:
+
+```bash
+npm run build
+npx cap sync android
+npx cap open android
 ```
 
 ## Environment variables
@@ -105,6 +130,8 @@ Frontend:
 - `VITE_SUPABASE_URL` - Supabase project URL
 - `VITE_SUPABASE_ANON_KEY` - Supabase anon/public key
 - `VITE_API_BASE_URL` - Worker base URL, for example `http://127.0.0.1:8787`
+- `VITE_APP_ORIGIN` - Public web app origin, for example `https://drop.example.com`
+- `VITE_GOOGLE_WEB_CLIENT_ID` - Google OAuth Web client ID used by Android native sign-in
 
 Worker:
 
@@ -131,6 +158,7 @@ Local env files:
 3. Ensure email/password auth is enabled.
 4. Copy the project URL and anon key into the frontend env file.
 5. Copy the service role key into the Worker env or Wrangler secrets.
+6. Configure Google sign-in in Supabase with the same Google OAuth Web client ID and secret used by the Google Cloud OAuth setup.
 
 The migration creates:
 
@@ -183,6 +211,8 @@ For consume-after-download file items, the frontend treats the download as succe
 
 The same limitation applies to shared file downloads: the Worker can validate the token, stream the file, and update the share count, but it cannot prove the browser finished writing the file to disk.
 
+On Android, file and image downloads use the native Capacitor bridge instead of the browser save flow.
+
 Shared text `CONSUME` items delete after the recipient successfully copies the text and the backend confirms the consume operation.
 
 Deploy with:
@@ -234,3 +264,4 @@ npm run worker:deploy
 - Ownership is enforced server-side.
 - Upload size is capped at 25 MB in the shared schema and Worker validation.
 - Editing a text item does not reset its expiration in V0.3.
+- V1 adds native Android support while keeping the web app as the primary shared codebase.

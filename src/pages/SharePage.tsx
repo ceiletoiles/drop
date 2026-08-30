@@ -8,6 +8,7 @@ import { Spinner } from '../components/ui/Spinner';
 import { formatFileSize } from '../lib/format';
 import { getExpirationSummary } from '../lib/expiration';
 import { getFileTypeKind } from '../lib/file';
+import { downloadBlob } from '../lib/download';
 import { apiUrl } from '../lib/env';
 import { copySharedText, downloadSharedFile, fetchShare } from '../features/share/share-api';
 import type { ShareResponse } from '../../shared/types';
@@ -67,14 +68,17 @@ export const SharePage = () => {
       setBusy(true);
       const response = await downloadSharedFile(token);
       const blob = await response.blob();
-      const objectUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = objectUrl;
-      link.download = item.file?.originalName ?? item.title;
-      link.click();
-      window.URL.revokeObjectURL(objectUrl);
+      const result = await downloadBlob(blob, item.file?.originalName ?? item.title);
       setError(null);
-      setMessage(item.expirationType === 'CONSUME' ? 'Download complete. This Drop has been removed.' : 'Download started.');
+      setMessage(
+        item.expirationType === 'CONSUME'
+          ? result.savedOnDevice
+            ? 'Saved to device storage. This Drop has been removed.'
+            : 'Download complete. This Drop has been removed.'
+          : result.savedOnDevice
+            ? 'Saved to device storage.'
+            : 'Download started.'
+      );
       if (item.expirationType === 'CONSUME') {
         setConsumed(true);
       }

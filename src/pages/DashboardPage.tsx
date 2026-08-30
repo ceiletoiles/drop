@@ -33,6 +33,8 @@ import { ShareModal } from '../features/share/ShareModal';
 import type { Item } from '../features/items/types';
 import { apiUrl } from '../lib/env';
 import { getFileTypeKind } from '../lib/file';
+import { downloadBlob } from '../lib/download';
+import { resolveAppUrl } from '../lib/app-url';
 import { readApiError } from '../lib/http';
 import { ApiBaseUrlBanner } from '../features/settings/ApiBaseUrlBanner';
 import { formatFileSize, getInitials } from '../lib/format';
@@ -402,24 +404,25 @@ export const DashboardPage = () => {
       }
 
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = item.file?.originalName ?? item.title;
-      link.click();
-      window.URL.revokeObjectURL(url);
+      const result = await downloadBlob(blob, item.file?.originalName ?? item.title);
       if (item.expirationType === 'CONSUME') {
         try {
           await consumeItem(token, item.id);
           refresh();
-          showAction('Download complete and removed.');
+          showAction(result.savedOnDevice ? 'Saved to device storage and removed.' : 'Download complete and removed.');
         } catch (error) {
           refresh();
-          showAction(error instanceof Error ? `Download completed. ${error.message}` : 'Download completed, but delete failed.');
+          showAction(
+            error instanceof Error
+              ? `${result.savedOnDevice ? 'Saved to device storage.' : 'Download completed.'} ${error.message}`
+              : result.savedOnDevice
+                ? 'Saved to device storage, but delete failed.'
+                : 'Download completed, but delete failed.'
+          );
         }
         return;
       }
-      showAction('Download started.');
+      showAction(result.savedOnDevice ? 'Saved to device storage.' : 'Download started.');
     } catch (error) {
       showAction(error instanceof Error ? error.message : 'Download failed.');
     }
@@ -647,7 +650,7 @@ export const DashboardPage = () => {
 
         setShareLoading(true);
         const payload = await fetchItemShare(token, item.id);
-        const shareUrl = `${window.location.origin}${payload.share.url}`;
+        const shareUrl = resolveAppUrl(payload.share.url);
         shareLinkCacheRef.current.set(item.id, shareUrl);
         setShareItem(payload.item);
         setShareLink(shareUrl);
@@ -677,7 +680,7 @@ export const DashboardPage = () => {
       shareRequestRef.current = shareItem.id;
 
       const payload = await createShare(token, shareItem.id);
-      const shareUrl = `${window.location.origin}${payload.share.url}`;
+      const shareUrl = resolveAppUrl(payload.share.url);
       shareLinkCacheRef.current.set(shareItem.id, shareUrl);
       setShareItem(payload.item);
       setShareLink(shareUrl);
@@ -735,13 +738,6 @@ export const DashboardPage = () => {
       <div className="grid min-h-[calc(100vh-1.5rem)] gap-4 xl:grid-cols-[220px_minmax(0,1fr)]">
         <aside className="hidden xl:flex">
           <div className="flex min-h-full w-full flex-col pr-4">
-            <div className="flex items-center gap-2.5">
-              <div>
-                <p className="text-[16px] font-semibold tracking-tight text-slate-950">Drop</p>
-                <p className="text-[12px] text-slate-500">Everything in one place</p>
-              </div>
-            </div>
-
             <nav className="mt-6 space-y-1.5">
               {navItems.map(({ key, label, icon: Icon }) => {
                 const active = key !== 'spaces' && activeFilter === key;
@@ -772,9 +768,9 @@ export const DashboardPage = () => {
           <header className="mb-3 pb-2.5 pt-1 sm:pb-3">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <div className="mt-2.5 xl:mt-0">
-                  <p className="text-[20px] font-semibold tracking-tight text-slate-950 sm:text-[1.8rem]">Welcome back, {displayName}! 👋</p>
-                  <p className="mt-1 max-w-2xl text-[13px] leading-5 text-slate-500">Drop anything and access anywhere</p>
+                <div>
+                  <p className="text-[16px] font-semibold tracking-tight text-slate-950">Drop</p>
+                  <p className="text-[12px] text-slate-500">Everything in one place</p>
                 </div>
               </div>
 
@@ -782,7 +778,7 @@ export const DashboardPage = () => {
                 <button
                   type="button"
                   onClick={() => setDrawerOpen(true)}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50 xl:hidden"
+                  className="inline-flex h-10 w-10 items-center justify-center text-slate-700 transition hover:text-slate-950 xl:hidden"
                   aria-label="Open menu"
                 >
                   <MenuIcon />
@@ -970,23 +966,6 @@ export const DashboardPage = () => {
             drawerOpen ? 'translate-x-0' : '-translate-x-full'
           )}
         >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div>
-                <p className="text-lg font-semibold tracking-tight text-slate-950">Drop</p>
-                <p className="text-sm text-slate-500">Save and revisit anything</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setDrawerOpen(false)}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm"
-              aria-label="Close menu"
-            >
-              <MenuIcon />
-            </button>
-          </div>
-
           <nav className="mt-8 space-y-1.5">
             {navItems.map(({ key, label, icon: Icon }) => {
               const active = activeFilter === key;
@@ -1010,15 +989,6 @@ export const DashboardPage = () => {
           </nav>
 
           <div className="mt-8 rounded-[1.75rem] border border-slate-200 bg-[linear-gradient(180deg,_rgba(248,250,252,0.96),_rgba(236,240,255,0.92))] p-4">
-            <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 text-sm font-semibold text-white">
-                {profileImage ? <img src={profileImage} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" /> : getInitials(user?.email ?? displayName)}
-              </div>
-              <div>
-                <p className="text-sm font-medium text-slate-950">{displayName}</p>
-                <p className="text-xs text-slate-500">{user?.email ?? 'Account'}</p>
-              </div>
-            </div>
             <Button
               type="button"
               variant="secondary"
