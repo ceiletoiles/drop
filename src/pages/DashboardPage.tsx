@@ -296,8 +296,6 @@ export const DashboardPage = () => {
     return list;
   }, [activeFilter, items, query, sortOrder]);
 
-  if (!authLoading && !session) return <Navigate to="/login" replace />;
-
   const handleCreateText = () => {
     setEditingItem(null);
     setPendingTextDraft({ title: '', content: '' });
@@ -609,6 +607,7 @@ export const DashboardPage = () => {
   const navAction = (key: SidebarNavKey | 'account') => {
     if (key === 'search') {
       setActiveFilter('search');
+      setDrawerOpen(false);
       setMobileActionsOpen(false);
       return;
     }
@@ -732,6 +731,8 @@ export const DashboardPage = () => {
     refresh();
     showAction('Expiration updated.');
   };
+
+  if (!authLoading && !session) return <Navigate to="/login" replace />;
 
   return (
     <AppShell>
@@ -962,11 +963,11 @@ export const DashboardPage = () => {
         />
         <aside
           className={clsx(
-            'absolute left-0 top-0 h-full w-[86vw] max-w-sm rounded-r-[2rem] border-r border-white/60 bg-white/95 p-5 shadow-[0_30px_100px_rgba(15,23,42,0.18)] backdrop-blur transition-transform',
+            'absolute left-0 top-0 flex h-full w-[68vw] max-w-[16rem] flex-col rounded-none border-r border-white/60 bg-white/95 p-4 shadow-[0_30px_100px_rgba(15,23,42,0.18)] backdrop-blur transition-transform',
             drawerOpen ? 'translate-x-0' : '-translate-x-full'
           )}
         >
-          <nav className="mt-8 space-y-1.5">
+          <nav className="mt-8 flex-1 space-y-1 overflow-y-auto">
             {navItems.map(({ key, label, icon: Icon }) => {
               const active = activeFilter === key;
               return (
@@ -975,11 +976,11 @@ export const DashboardPage = () => {
                   type="button"
                   onClick={() => navAction(key)}
                   className={clsx(
-                    'flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-medium transition',
+                    'flex w-full items-center gap-2.5 rounded-2xl px-3 py-2.5 text-left text-[13px] font-medium transition',
                     active ? 'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-200/80' : 'text-slate-700 hover:bg-slate-100'
                   )}
                 >
-                  <span className={clsx('grid h-9 w-9 place-items-center rounded-xl', active ? 'bg-white text-indigo-600 shadow-sm' : 'bg-slate-100 text-slate-600')}>
+                  <span className={clsx('grid h-8 w-8 shrink-0 place-items-center rounded-xl', active ? 'bg-white text-indigo-600 shadow-sm' : 'bg-slate-100 text-slate-600')}>
                     <Icon />
                   </span>
                   <span className="flex-1">{label}</span>
@@ -988,7 +989,7 @@ export const DashboardPage = () => {
               })}
           </nav>
 
-          <div className="mt-8 rounded-[1.75rem] border border-slate-200 bg-[linear-gradient(180deg,_rgba(248,250,252,0.96),_rgba(236,240,255,0.92))] p-4">
+          <div className="mt-4 rounded-[1.5rem] border border-slate-200 bg-[linear-gradient(180deg,_rgba(248,250,252,0.96),_rgba(236,240,255,0.92))] p-3">
             <Button
               type="button"
               variant="secondary"
@@ -1000,7 +1001,7 @@ export const DashboardPage = () => {
                   showAction(error instanceof Error ? error.message : 'Logout failed.');
                 }
               }}
-              className="mt-4 w-full justify-center"
+              className="w-full justify-center px-3 py-2.5 text-sm"
             >
               <LogOutIcon />
               Logout

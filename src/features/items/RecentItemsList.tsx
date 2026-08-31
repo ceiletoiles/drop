@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { Spinner } from '../../components/ui/Spinner';
-import { CalendarIcon, ClockIcon, CopyIcon, DownloadIcon, FileIcon, ImageIcon, ListIcon, LockIcon, MoreHorizontalIcon, PencilIcon, SearchIcon, ShareIcon, SortIcon, TrashIcon } from '../../components/ui/Icon';
+import { CalendarIcon, ClockIcon, CopyIcon, DownloadIcon, FileIcon, ImageIcon, ListIcon, LockIcon, MoreHorizontalIcon, PencilIcon, SearchIcon, ShareIcon, SortIcon, TextIcon, TrashIcon } from '../../components/ui/Icon';
 import { FileTypeIcon } from '../../components/ui/FileTypeIcon';
 import { formatFileSize, formatRelativeTime } from '../../lib/format';
 import { getFileTypeKind, getFileTypeLabel } from '../../lib/file';
@@ -96,7 +96,7 @@ export const RecentItemsList = ({
     const anchor = event.currentTarget.getBoundingClientRect();
     const menuWidth = 180;
     const isImage = item.type === 'file' && getFileTypeKind({ filename: item.file?.originalName, mimeType: item.file?.mimeType }) === 'image';
-    const menuHeight = item.type === 'text' || (isImage && onPreview) ? 136 : 96;
+    const menuHeight = item.type === 'text' ? 184 : isImage && onPreview ? 136 : 96;
     const viewportPadding = 8;
     const left = Math.min(Math.max(anchor.right - menuWidth, viewportPadding), window.innerWidth - menuWidth - viewportPadding);
     const belowTop = anchor.bottom + viewportPadding;
@@ -382,8 +382,19 @@ export const RecentItemsList = ({
                                   onViewText(item);
                                 }}
                               >
-                                <ListIcon className="h-5 w-5" />
+                                <TextIcon className="h-5 w-5" />
                                 View
+                              </button>
+                              <button
+                                type="button"
+                                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left hover:bg-slate-100"
+                                onClick={() => {
+                                  setMenuState(null);
+                                  setInfoItem(item);
+                                }}
+                              >
+                                <ListIcon className="h-5 w-5" />
+                                Info
                               </button>
                               <button
                                 type="button"
@@ -561,8 +572,7 @@ export const RecentItemsList = ({
                     <ClockIcon className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[0.86rem] font-semibold text-slate-950">Added</p>
-                    <p className="mt-1 text-[0.84rem] text-slate-900">{formatRelativeTime(infoItem.createdAt)}</p>
+                    <p className="text-[0.86rem] font-semibold text-slate-950">Added {formatRelativeTime(infoItem.createdAt)}</p>
                     {infoCreatedDateLabel ? <p className="mt-0.5 text-[0.72rem] text-slate-500">{infoCreatedDateLabel}</p> : null}
                   </div>
                 </div>
@@ -572,8 +582,7 @@ export const RecentItemsList = ({
                     <CalendarIcon className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[0.86rem] font-semibold text-slate-950">Available for</p>
-                    <p className="mt-1 text-[0.84rem] text-slate-900">{infoExpirationLabel}</p>
+                    <p className="text-[0.86rem] font-semibold text-slate-950">Available for {infoExpirationLabel}</p>
                     <p className="mt-0.5 text-[0.72rem] leading-5 text-slate-500">Auto deletes after the expiration period.</p>
                   </div>
                 </div>
@@ -583,8 +592,7 @@ export const RecentItemsList = ({
                     <LockIcon className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[0.86rem] font-semibold text-slate-950">Access</p>
-                    <p className="mt-1 text-[0.84rem] text-slate-900">{scope === 'space' ? 'Space members' : infoItem.share ? 'Shared' : 'Private'}</p>
+                    <p className="text-[0.86rem] font-semibold text-slate-950">Access {scope === 'space' ? 'Space members' : infoItem.share ? 'Shared' : 'Private'}</p>
                     <p className="mt-0.5 text-[0.72rem] leading-5 text-slate-500">
                       {scope === 'space'
                         ? 'Visible to every active member of this Space.'

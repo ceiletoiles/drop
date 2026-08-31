@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { Spinner } from '../components/ui/Spinner';
-import { LogOutIcon, PlusIcon, TrashIcon, UploadIcon } from '../components/ui/Icon';
+import { PlusIcon, UploadIcon } from '../components/ui/Icon';
 import { useAuth } from '../features/auth/auth-context';
 import { NoteViewModal } from '../features/items/NoteViewModal';
 import { ImagePreviewModal } from '../features/items/ImagePreviewModal';
@@ -597,17 +597,6 @@ export const SpacePage = () => {
               <PlusIcon />
               New note
             </Button>
-            {isOwner ? (
-              <Button type="button" variant="secondary" className="col-span-2 h-10 min-w-0 w-full px-2 text-xs leading-tight sm:col-span-1 sm:w-auto sm:px-4 sm:text-sm" onClick={() => void handleDeleteSpace()} disabled={busy}>
-                <TrashIcon />
-                Delete Space
-              </Button>
-            ) : (
-              <Button type="button" variant="secondary" className="col-span-2 h-10 min-w-0 w-full px-2 text-xs leading-tight sm:col-span-1 sm:w-auto sm:px-4 sm:text-sm" onClick={() => void handleLeave()} disabled={busy}>
-                <LogOutIcon />
-                Leave
-              </Button>
-            )}
           </div>
 
           <div className="absolute right-0 top-0 md:hidden">
@@ -659,6 +648,31 @@ export const SpacePage = () => {
                 >
                   Members
                 </button>
+                {isOwner ? (
+                  <button
+                    type="button"
+                    className="flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-medium text-rose-600 hover:bg-rose-50"
+                    role="menuitem"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      void handleDeleteSpace();
+                    }}
+                  >
+                    Delete Space
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-medium text-rose-600 hover:bg-rose-50"
+                    role="menuitem"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      void handleLeave();
+                    }}
+                  >
+                    Leave
+                  </button>
+                )}
               </div>
             ) : null}
           </div>

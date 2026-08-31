@@ -198,16 +198,7 @@ export const SharePage = () => {
                       </div>
                     ) : null}
 
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="text-sm text-slate-500">
-                        {item.file ? (
-                          <span>
-                            {item.file.originalName}
-                            {' · '}
-                            {formatFileSize(item.file.size)}
-                          </span>
-                        ) : null}
-                      </div>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
                       <Button type="button" className="w-full sm:w-auto" onClick={handleDownload} disabled={busy || consumed}>
                         <DownloadIcon />
                         Download

@@ -1,7 +1,7 @@
 import { useState, type DragEvent } from 'react';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
-import { CloudUploadIcon, PlusIcon } from '../../components/ui/Icon';
+import { PlusIcon } from '../../components/ui/Icon';
 import { clsx } from 'clsx';
 
 export interface UploadItemState {
@@ -56,7 +56,7 @@ export const UploadDropzone = ({
     >
       <div className="flex flex-col items-center text-center">
         <div className={clsx('grid h-12 w-12 place-items-center rounded-3xl', dragging ? 'bg-white text-indigo-600 shadow-sm' : 'bg-white/80 text-slate-700 shadow-sm')}>
-          <CloudUploadIcon className="h-6 w-6" />
+          <img src="/images/upload.png" alt="" className="h-6 w-6" aria-hidden="true" />
         </div>
         <h2 className="mt-3 text-xl font-semibold tracking-tight text-slate-950 sm:text-[1.7rem]">
           {dragging ? 'Release to upload' : 'Drop files, images, or paste text'}
