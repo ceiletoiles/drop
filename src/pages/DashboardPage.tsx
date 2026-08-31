@@ -976,8 +976,10 @@ export const DashboardPage = () => {
                   type="button"
                   onClick={() => navAction(key)}
                   className={clsx(
-                    'flex w-full items-center gap-2.5 rounded-2xl px-3 py-2.5 text-left text-[13px] font-medium transition',
-                    active ? 'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-200/80' : 'text-slate-700 hover:bg-slate-100'
+                    'flex w-full items-center gap-2.5 rounded-2xl border px-3 py-2.5 text-left text-[13px] font-medium transition',
+                    active
+                      ? 'border-indigo-200/80 bg-indigo-50 text-indigo-600'
+                      : 'border-transparent text-slate-700 hover:border-slate-200 hover:bg-slate-100'
                   )}
                 >
                   <span className={clsx('grid h-8 w-8 shrink-0 place-items-center rounded-xl', active ? 'bg-white text-indigo-600 shadow-sm' : 'bg-slate-100 text-slate-600')}>

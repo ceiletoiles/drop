@@ -3,7 +3,27 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#08111f" />
+    <meta name="theme-color" content="#ffffff" />
+    <style>
+      html,
+      body,
+      #root {
+        width: 100%;
+        min-width: 0;
+        min-height: 100%;
+      }
+
+      body {
+        margin: 0;
+        background: #ffffff;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      #drop-splash {
+        min-height: 100vh;
+      }
+
+    </style>
     <link rel="icon" type="image/x-icon" href="/favicon_io/favicon.ico" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon_io/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon_io/favicon-16x16.png" />
@@ -11,7 +31,23 @@
     <title>Drop</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div
+        id="drop-splash"
+        style='position:relative;display:grid;place-items:center;overflow:hidden;background:radial-gradient(circle_at_top,rgba(59,130,246,0.12),transparent_35%),linear-gradient(180deg,#ffffff 0%,#f8fafc 100%);color:#0f172a;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;'
+      >
+        <div style="position:absolute;left:-6rem;top:-6rem;height:16rem;width:16rem;border-radius:9999px;background:rgba(96,165,250,0.1);filter:blur(64px);"></div>
+        <div style="position:absolute;right:-5rem;bottom:-6rem;height:18rem;width:18rem;border-radius:9999px;background:rgba(167,139,250,0.1);filter:blur(64px);"></div>
+        <div style="position:relative;display:flex;flex-direction:column;align-items:center;padding:24px;text-align:center;">
+          <img src="/favicon_io/android-chrome-192x192.png" alt="" style="height:56px;width:56px;" />
+          <p style="margin:24px 0 0;font-size:11px;font-weight:600;letter-spacing:0.38em;text-transform:uppercase;color:#0284c7;">Drop</p>
+          <p style="margin:12px 0 0;max-width:20rem;font-size:14px;line-height:1.5;color:#475569;">Loading your files, notes and spaces.</p>
+          <div style="margin-top:24px;height:6px;width:192px;overflow:hidden;border-radius:9999px;background:#e2e8f0;">
+            <div style="height:100%;width:50%;border-radius:9999px;background:linear-gradient(90deg,#0ea5e9,#6366f1,#8b5cf6);animation:dropSplashPulse 1.6s ease-in-out infinite;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
  </html>

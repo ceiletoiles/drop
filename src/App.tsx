@@ -1,8 +1,8 @@
 import { lazy, Suspense, type ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AndroidBackButtonHandler } from './components/navigation/AndroidBackButtonHandler';
+import { SplashScreen } from './components/ui/SplashScreen';
 import { useAuth } from './features/auth/auth-context';
-import { Spinner } from './components/ui/Spinner';
 
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then((module) => ({ default: module.DashboardPage })));
 const LoginPage = lazy(() => import('./pages/LoginPage').then((module) => ({ default: module.LoginPage })));
@@ -14,11 +14,7 @@ const JoinSpacePage = lazy(() => import('./pages/JoinSpacePage').then((module) =
 const SignupPage = lazy(() => import('./pages/SignupPage').then((module) => ({ default: module.SignupPage })));
 const SharePage = lazy(() => import('./pages/SharePage').then((module) => ({ default: module.SharePage })));
 
-const LoadingScreen = () => (
-  <div className="grid min-h-screen place-items-center bg-slate-50 text-slate-700">
-    <Spinner />
-  </div>
-);
+const LoadingScreen = () => <SplashScreen />;
 
 const AuthRoute = ({ children }: { children: ReactNode }) => {
   const { loading, user } = useAuth();
@@ -104,6 +100,8 @@ export const App = () => (
           </ProtectedRoute>
         }
       />
+      {/*remove the splash link later*/}
+      <Route path="/splash" element={<SplashScreen />} />
       <Route
         path="/join/:token"
         element={
