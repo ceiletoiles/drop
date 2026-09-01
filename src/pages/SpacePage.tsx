@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { Spinner } from '../components/ui/Spinner';
-import { PlusIcon, TrashIcon, UploadIcon, UserPlusIcon, UsersIcon } from '../components/ui/Icon';
+import { ArrowBackIcon, LogOutIcon, PlusIcon, TrashIcon, UploadIcon, UserPlusIcon, UsersIcon } from '../components/ui/Icon';
 import { useAuth } from '../features/auth/auth-context';
 import { NoteViewModal } from '../features/items/NoteViewModal';
 import { ImagePreviewModal } from '../features/items/ImagePreviewModal';
@@ -574,22 +574,10 @@ export const SpacePage = () => {
                 type="button"
                 variant="ghost"
                 onClick={() => navigate('/spaces')}
-                className="border border-slate-200 p-0 shadow-sm"
-                style={{
-                  width: 64,
-                  height: 64,
-                  minWidth: 64,
-                  minHeight: 64,
-                  borderRadius: '9999px',
-                  background: '#fff',
-                  color: '#000',
-                  padding: 0,
-                }}
+                className="h-12 w-12 shrink-0 rounded-full border-0 bg-transparent p-0 text-black shadow-none hover:bg-transparent"
                 aria-label="Back to spaces"
               >
-                <svg className="h-10 w-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="m15 18-6-6 6-6" />
-                </svg>
+                <ArrowBackIcon className="h-7 w-7" />
               </Button>
               <div className="min-w-0">
                 <h1 className="truncate text-[20px] font-semibold tracking-tight text-slate-950 sm:text-[1.9rem]">{space?.name ?? 'Space'}</h1>
@@ -613,7 +601,7 @@ export const SpacePage = () => {
             <Button
               type="button"
               variant="secondary"
-              className="h-14 w-14 shrink-0 rounded-full p-0"
+              className="h-14 w-14 shrink-0 rounded-full !border-0 !bg-transparent p-0 text-slate-700 !shadow-none hover:!bg-transparent hover:text-slate-950"
               aria-label="Space options"
               aria-expanded={mobileMenuOpen}
               onClick={() => setMobileMenuOpen((current) => !current)}
@@ -635,7 +623,7 @@ export const SpacePage = () => {
                 {isOwner ? (
                   <button
                     type="button"
-                    className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 hover:bg-slate-100"
+                    className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-medium leading-5 text-slate-700 hover:bg-slate-100"
                     role="menuitem"
                     onClick={() => {
                       setMobileMenuOpen(false);
@@ -643,13 +631,15 @@ export const SpacePage = () => {
                       setMobilePanelOpen(true);
                     }}
                   >
-                    <UserPlusIcon className="h-4 w-4" />
-                    Invite
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+                      <UserPlusIcon className="h-4 w-4" />
+                    </span>
+                    <span className="leading-5">Invite</span>
                   </button>
                 ) : null}
                 <button
                   type="button"
-                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 hover:bg-slate-100"
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-medium leading-5 text-slate-700 hover:bg-slate-100"
                   role="menuitem"
                   onClick={() => {
                     setMobileMenuOpen(false);
@@ -657,33 +647,40 @@ export const SpacePage = () => {
                     setMobilePanelOpen(true);
                   }}
                 >
-                  <UsersIcon className="h-4 w-4" />
-                  Members
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+                    <UsersIcon className="h-4 w-4" />
+                  </span>
+                  <span className="leading-5">Members</span>
                 </button>
                 {isOwner ? (
                   <button
                     type="button"
-                    className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-rose-600 hover:bg-rose-50"
+                    className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-medium leading-5 text-rose-600 hover:bg-rose-50"
                     role="menuitem"
                     onClick={() => {
                       setMobileMenuOpen(false);
                       void handleDeleteSpace();
                     }}
                   >
-                    <TrashIcon className="h-4 w-4" />
-                    Delete Space
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+                      <TrashIcon className="h-4 w-4" />
+                    </span>
+                    <span className="leading-5">Delete Space</span>
                   </button>
                 ) : (
                   <button
                     type="button"
-                    className="flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-medium text-rose-600 hover:bg-rose-50"
+                    className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-medium leading-5 text-rose-600 hover:bg-rose-50"
                     role="menuitem"
                     onClick={() => {
                       setMobileMenuOpen(false);
                       void handleLeave();
                     }}
                   >
-                    Leave
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+                      <LogOutIcon className="h-4 w-4" />
+                    </span>
+                    <span className="leading-5">Leave</span>
                   </button>
                 )}
               </div>

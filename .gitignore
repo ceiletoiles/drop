@@ -14,3 +14,4 @@ supabase/.temp/
 .pnpm-store
 .hintrc
 drop-release.jks
+.vscode

@@ -5,12 +5,14 @@ import { useActivity } from '../features/activity/useActivity';
 import type { ActivityItem } from '../features/activity/types';
 import { useAuth } from '../features/auth/auth-context';
 import { formatFileSize, formatRelativeTime, getInitials } from '../lib/format';
-import { Link } from 'react-router-dom';
-import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState, type SVGProps } from 'react';
 import { useItems } from '../features/items/useItems';
 import { isImageFile } from '../lib/file';
 import { fetchMySpaceInvitations } from '../features/spaces/spaces-api';
 import { resolveAppUrl } from '../lib/app-url';
+import { ArrowBackIcon } from '../components/ui/Icon';
+import { clsx } from 'clsx';
 
 type StorageCategory = 'files' | 'images' | 'text' | 'other';
 
@@ -21,19 +23,46 @@ type StorageRow = {
   kind: string;
 };
 
+const iconBaseProps: SVGProps<SVGSVGElement> = {
+  viewBox: '0 0 24 32',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.8,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+  'aria-hidden': true
+};
+
+const ThreeDotIcon = ({ className, ...props }: SVGProps<SVGSVGElement>) => (
+  <svg className={clsx("h-5 w-5", className)} {...iconBaseProps} {...props}>
+  <circle cx="12" cy="12" r="1" />
+  <circle cx="12" cy="5" r="1" />
+  <circle cx="12" cy="19" r="1" />
+</svg>
+);
+
+const ActivityIcon = ({ className, ...props }: SVGProps<SVGSVGElement>) => (
+  <svg className={clsx('h-5 w-5', className)} {...iconBaseProps} {...props}>
+    <path d="M5 12H7.75044C7.89947 12 8.03179 11.9046 8.07892 11.7632V11.7632L9.875 6.375V6.375C9.91626 6.25122 10.0918 6.25238 10.1364 6.375V6.375L13.875 16.6562L13.885 16.6837C13.9253 16.7946 14.0812 16.797 14.125 16.6875V16.6875L15.8841 12.2898V12.2898C15.9541 12.1148 16.1236 12 16.3122 12H19" />
+  </svg>
+);
+
 const panelClassName =
   'overflow-hidden rounded-none border border-slate-200/80 bg-[linear-gradient(180deg,_rgba(251,252,255,0.92),_rgba(238,243,251,0.92))] p-4 shadow-[0_14px_44px_rgba(15,23,42,0.06)] backdrop-blur-sm sm:p-5';
 
 export const AccountPage = () => {
+  const navigate = useNavigate();
   const { user, session } = useAuth();
   const { items } = useItems(session?.access_token ?? null, '', true);
   const { activities, loading: activityLoading, error: activityError } = useActivity(session?.access_token ?? null, 20);
   const [activeCategory, setActiveCategory] = useState<StorageCategory | null>(null);
   const [activityOpen, setActivityOpen] = useState(false);
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [spaceInvitations, setSpaceInvitations] = useState<Awaited<ReturnType<typeof fetchMySpaceInvitations>>['invitations']>([]);
   const [spaceInvitationsLoading, setSpaceInvitationsLoading] = useState(false);
   const [spaceInvitationsError, setSpaceInvitationsError] = useState<string | null>(null);
   const [profileImageError, setProfileImageError] = useState(false);
+  const headerMenuRef = useRef<HTMLDivElement | null>(null);
 
   const displayName =
     user?.user_metadata?.full_name ??
@@ -148,8 +177,6 @@ export const AccountPage = () => {
     return configs[activeCategory];
   }, [activeCategory, storageStats]);
 
-  const recentActivities = activities.slice(0, 5);
-
   useEffect(() => {
     if (!session?.access_token) {
       setSpaceInvitations([]);
@@ -176,6 +203,30 @@ export const AccountPage = () => {
 
     return () => controller.abort();
   }, [session?.access_token]);
+
+  useEffect(() => {
+    if (!headerMenuOpen) return;
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && !headerMenuRef.current?.contains(event.target)) {
+        setHeaderMenuOpen(false);
+      }
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setHeaderMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [headerMenuOpen]);
 
   const getActivityActionLabel = (activity: ActivityItem) => {
     switch (activity.action) {
@@ -242,11 +293,48 @@ export const AccountPage = () => {
     <AppShell>
       <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] w-full max-w-3xl items-start py-1 sm:py-3">
         <div className="w-full space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">My account</h1>
-            <Link to="/" className="text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4 hover:text-slate-950">
-              Back to drop
-            </Link>
+          <div className="grid grid-cols-[auto,1fr,auto] items-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="inline-flex h-12 w-12 items-center justify-center rounded-full border-0 bg-transparent text-slate-700 shadow-none transition hover:bg-transparent hover:text-slate-950"
+              aria-label="Go back"
+            >
+              <ArrowBackIcon className="!h-7 !w-7 !text-slate-700" />
+            </button>
+            <h1 className="justify-self-center text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">Account</h1>
+            <div ref={headerMenuRef} className="relative justify-self-end">
+              <button
+                type="button"
+                onClick={() => setHeaderMenuOpen((current) => !current)}
+                className="inline-flex h-14 w-14 items-center justify-center text-slate-700 transition hover:text-slate-950"
+                aria-label="Open account menu"
+                aria-haspopup="menu"
+                aria-expanded={headerMenuOpen}
+              >
+                <ThreeDotIcon className="h-7 w-7" viewBox="0 0 24 24" />
+              </button>
+
+              {headerMenuOpen ? (
+                <div
+                  className="absolute right-0 top-[calc(100%+0.5rem)] z-20 w-32 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.12)]"
+                  role="menu"
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setHeaderMenuOpen(false);
+                      setActivityOpen(true);
+                    }}
+                    className="flex w-full items-center justify-center gap-3 px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-100"
+                    role="menuitem"
+                  >
+                    <ActivityIcon className="shrink-0 text-slate-600" viewBox="0 0 24 24" />
+                    <span className="font-medium text-slate-950">Activity</span>
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
 
           <section className={panelClassName}>
@@ -323,43 +411,6 @@ export const AccountPage = () => {
               )}
             </section>
           ) : null}
-
-          <section className={panelClassName}>
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <p className="text-sm font-medium tracking-normal text-slate-700">Recent account activity</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActivityOpen(true)}
-                className="shrink-0 text-sm font-medium text-slate-600 underline decoration-slate-300 underline-offset-4 hover:text-slate-950"
-              >
-                View all activity
-              </button>
-            </div>
-
-            {activityError ? (
-              <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-6 text-sm text-rose-700">
-                {activityError}
-              </div>
-            ) : recentActivities.length > 0 ? (
-              <div className="mt-4 space-y-2">
-                {recentActivities.map((activity) => (
-                  <div key={activity.id} className="flex items-start justify-between gap-3 rounded-[1rem] border border-slate-200/80 bg-white/75 px-3 py-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-slate-950">{getActivityLabel(activity)}</p>
-                      <p className="mt-1 text-xs text-slate-500">{getActivityMeta(activity)}</p>
-                    </div>
-                    <p className="shrink-0 text-xs text-slate-500">{formatRelativeTime(activity.createdAt)}</p>
-                  </div>
-                ))}
-              </div>
-            ) : activityLoading ? null : (
-              <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
-                No activity yet.
-              </div>
-            )}
-          </section>
 
           <section className={panelClassName}>
             <div className="flex items-start justify-between gap-4">

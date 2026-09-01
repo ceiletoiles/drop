@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { Spinner } from '../components/ui/Spinner';
-import { BackIcon, FileIcon, GridIcon, ImageIcon, LogOutIcon, MoreHorizontalIcon, PencilIcon, PlusIcon, TrashIcon } from '../components/ui/Icon';
+import { ArrowBackIcon, FileIcon, GridIcon, ImageIcon, LogOutIcon, MoreHorizontalIcon, PencilIcon, PlusIcon, TrashIcon } from '../components/ui/Icon';
 import { useAuth } from '../features/auth/auth-context';
 import { createSpace, deleteSpace, fetchSpaces, leaveSpace, renameSpace } from '../features/spaces/spaces-api';
 import type { SpaceSummary } from '../../shared/types';
@@ -219,10 +219,10 @@ export const SpacesPage = () => {
               type="button"
               variant="ghost"
               onClick={() => navigate('/')}
-              className="h-16 w-16 shrink-0 rounded-full border border-slate-200 bg-white/90 p-0 text-black shadow-sm hover:bg-slate-100"
+              className="h-12 w-12 shrink-0 rounded-full border-0 bg-transparent p-0 text-black shadow-none hover:bg-transparent"
               aria-label="Back to drop"
             >
-              <BackIcon className="h-12 w-12" />
+              <ArrowBackIcon className="h-7 w-7" />
             </Button>
           </div>
 

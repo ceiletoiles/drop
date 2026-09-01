@@ -187,8 +187,8 @@ export const ChevronDownIcon = ({ className, ...props }: IconProps) => (
 
 export const CopyIcon = ({ className, ...props }: IconProps) => (
   <svg className={clsx("h-5 w-5", className)} {...baseProps} {...props}>
-    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
-    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2-2-2h10c1.1 0 2 .9 2 2" />
+    <path d="M8 4V16C8 17.1046 8.89543 18 10 18L18 18C19.1046 18 20 17.1046 20 16V7.24162C20 6.7034 19.7831 6.18789 19.3982 5.81161L16.0829 2.56999C15.7092 2.2046 15.2074 2 14.6847 2H10C8.89543 2 8 2.89543 8 4Z" />
+    <path d="M16 18V20C16 21.1046 15.1046 22 14 22H6C4.89543 22 4 21.1046 4 20V9C4 7.89543 4.89543 7 6 7H8" />
   </svg>
 );
 
@@ -255,6 +255,12 @@ export const BackIcon = ({ className, ...props }: IconProps) => (
     <circle cx="12" cy="12" r="8.5" />
     <path d="M13.5 7.5 8.5 12l5 4.5" />
     <path d="M8.5 12h8" />
+  </svg>
+);
+
+export const ArrowBackIcon = ({ className, ...props }: IconProps) => (
+  <svg className={clsx("h-8 w-8", className)} {...baseProps} viewBox="0 0 52 52" fill="currentColor" stroke="none" {...props}>
+    <path d="M50 24H6.83L27.41 3.41a2 2 0 0 0 0-2.82 2 2 0 0 0-2.82 0l-24 24a1.79 1.79 0 0 0-.25.31A1.19 1.19 0 0 0 .25 25c0 .07-.07.13-.1.2l-.06.2a.84.84 0 0 0 0 .17 2 2 0 0 0 0 .78.84.84 0 0 0 0 .17l.06.2c0 .07.07.13.1.2a1.19 1.19 0 0 0 .09.15 1.79 1.79 0 0 0 .25.31l24 24a2 2 0 1 0 2.82-2.82L6.83 28H50a2 2 0 0 0 0-4Z" />
   </svg>
 );
 
