@@ -1,43 +1,46 @@
-import type { SVGProps } from 'react';
-import { clsx } from 'clsx';
+import type { SVGProps } from "react";
+import { clsx } from "clsx";
 
 type IconProps = SVGProps<SVGSVGElement>;
 
 const baseProps: IconProps = {
-  viewBox: '0 0 24 24',
-  fill: 'none',
-  stroke: 'currentColor',
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
   strokeWidth: 1.8,
-  strokeLinecap: 'round',
-  strokeLinejoin: 'round',
-  'aria-hidden': true
+  strokeLinecap: "round",
+  strokeLinejoin: "round",
+  "aria-hidden": true,
 };
 
 export const LogoIcon = ({ className, ...props }: IconProps) => (
-  <svg className={clsx('h-6 w-6', className)} {...baseProps} {...props}>
-    <path d="M12 2 6.5 9.5a6.5 6.5 0 1 0 13 0L12 2Z" fill="currentColor" stroke="none" />
+  <svg className={clsx("h-6 w-6", className)} {...baseProps} {...props}>
+    <path
+      d="M12 2 6.5 9.5a6.5 6.5 0 1 0 13 0L12 2Z"
+      fill="currentColor"
+      stroke="none"
+    />
     <path d="M8.5 12.5 12 9l3.5 3.5M12 9v8" />
   </svg>
 );
 
 export const HomeIcon = ({ className, ...props }: IconProps) => (
-  <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
+  <svg className={clsx("h-5 w-5", className)} {...baseProps} {...props}>
     <path d="m4 11 8-7 8 7" />
     <path d="M6 10.5V20h12v-9.5" />
   </svg>
 );
 
 export const ListIcon = ({ className, ...props }: IconProps) => (
-  <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
-    <path d="M8 6h10" />
-    <path d="M8 12h10" />
-    <path d="M8 18h10" />
-    <path d="M5 6h.01M5 12h.01M5 18h.01" />
+  <svg className={clsx("h-5 w-5", className)} {...baseProps} {...props}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 16v-4" />
+    <path d="M12 8h.01" />
   </svg>
 );
 
 export const GridIcon = ({ className, ...props }: IconProps) => (
-  <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
+  <svg className={clsx("h-5 w-5", className)} {...baseProps} {...props}>
     <rect x="4.5" y="4.5" width="6" height="6" rx="1.5" />
     <rect x="13.5" y="4.5" width="6" height="6" rx="1.5" />
     <rect x="4.5" y="13.5" width="6" height="6" rx="1.5" />
@@ -46,29 +49,51 @@ export const GridIcon = ({ className, ...props }: IconProps) => (
 );
 
 export const TextIcon = ({ className, ...props }: IconProps) => (
-  <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
-    <path d="M6 4h8l4 4v12H6z" />
-    <path d="M14 4v4h4" />
-    <path d="M9 11h6M9 15h6" />
+  <svg className={clsx("h-5 w-5", className)} {...baseProps} {...props}>
+    <path d="M13.054 18.946a11 11 0 0 1-2.11 0" />
+    <path d="M13.054 5.054a11 11 0 0 0-2.11-.001" />
+    <path d="M17.072 6.274a11 11 0 0 1 1.753 1.173" />
+    <path d="M18.825 16.552a11 11 0 0 1-1.753 1.174" />
+    <path d="M2.514 13.303a11 11 0 0 1-.452-.954 1 1 0 0 1 0-.697 11 11 0 0 1 .45-.955" />
+    <path d="M21.485 10.697a11 11 0 0 1 .453.955 1 1 0 0 1 0 .697 11 11 0 0 1-.453.954" />
+    <path d="M5.173 7.448a11 11 0 0 1 1.753-1.174" />
+    <path d="M6.926 17.726a11 11 0 0 1-1.753-1.174" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+export const SquareTextIcon = ({ className, ...props }: IconProps) => (
+  <svg className={clsx("h-5 w-5", className)} {...baseProps} {...props}>
+    <rect width="18" height="18" x="3" y="3" rx="2" />
+    <path d="M7 8h8" />
+    <path d="M7 12h10" />
+    <path d="M7 16h6" />
+  </svg>
+);
+
+export const RenameIcon = ({ className, ...props }: IconProps) => (
+  <svg className={clsx("h-5 w-5", className)} {...baseProps} {...props}>
+    <path d="M2 11.5V5a2 2 0 0 1 2-2h3.9c.7 0 1.3.3 1.7.9l.8 1.2c.4.6 1 .9 1.7.9H20a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-9.5" />
+    <path d="M11.378 13.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" />
   </svg>
 );
 
 export const FileIcon = ({ className, ...props }: IconProps) => (
-  <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
+  <svg className={clsx("h-5 w-5", className)} {...baseProps} {...props}>
     <path d="M6 3.5h7l5 5V20.5H6z" />
     <path d="M13 3.5V8.5h5" />
   </svg>
 );
 
 export const ClockIcon = ({ className, ...props }: IconProps) => (
-  <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
+  <svg className={clsx("h-5 w-5", className)} {...baseProps} {...props}>
     <circle cx="12" cy="12" r="8" />
     <path d="M12 8v5l3 2" />
   </svg>
 );
 
 export const CalendarIcon = ({ className, ...props }: IconProps) => (
-  <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
+  <svg className={clsx("h-5 w-5", className)} {...baseProps} {...props}>
     <rect x="4" y="5.5" width="16" height="14.5" rx="2" />
     <path d="M7.5 3.5V7" />
     <path d="M16.5 3.5V7" />
@@ -77,14 +102,14 @@ export const CalendarIcon = ({ className, ...props }: IconProps) => (
 );
 
 export const LockIcon = ({ className, ...props }: IconProps) => (
-  <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
+  <svg className={clsx("h-5 w-5", className)} {...baseProps} {...props}>
     <rect x="5" y="11" width="14" height="9" rx="2" />
     <path d="M8 11V8.5a4 4 0 0 1 8 0V11" />
   </svg>
 );
 
 export const ImageIcon = ({ className, ...props }: IconProps) => (
-  <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
+  <svg className={clsx("h-5 w-5", className)} {...baseProps} {...props}>
     <rect x="4" y="5" width="16" height="14" rx="2" />
     <path d="m6.5 16 4.2-4.2a1.5 1.5 0 0 1 2.1 0L17 16" />
     <path d="m13 13 2.1-2.1a1.5 1.5 0 0 1 2.1 0L18 12.8" />
@@ -93,14 +118,20 @@ export const ImageIcon = ({ className, ...props }: IconProps) => (
 );
 
 export const SearchIcon = ({ className, ...props }: IconProps) => (
-  <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
+  <svg className={clsx("h-5 w-5", className)} {...baseProps} {...props}>
     <circle cx="11" cy="11" r="6.5" />
     <path d="m16 16 4 4" />
   </svg>
 );
 
 export const SortIcon = ({ className, ...props }: IconProps) => (
-  <svg className={clsx('h-5 w-5', className)} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+  <svg
+    className={clsx("h-5 w-5", className)}
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    {...props}
+  >
     <path
       fillRule="evenodd"
       clipRule="evenodd"
@@ -111,16 +142,17 @@ export const SortIcon = ({ className, ...props }: IconProps) => (
 );
 
 export const TrashIcon = ({ className, ...props }: IconProps) => (
-  <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
-    <path d="M4 7h16" />
-    <path d="M9 7V5h6v2" />
-    <path d="M7 7l1 13h8l1-13" />
-    <path d="M10 11v5M14 11v5" />
+  <svg className={clsx("h-5 w-5", className)} {...baseProps} {...props}>
+    <path d="M10 11v6" />
+    <path d="M14 11v6" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+    <path d="M3 6h18" />
+    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
   </svg>
 );
 
 export const UploadIcon = ({ className, ...props }: IconProps) => (
-  <svg className={clsx('h-6 w-6', className)} {...baseProps} {...props}>
+  <svg className={clsx("h-6 w-6", className)} {...baseProps} {...props}>
     <path d="M12 16V5" />
     <path d="m7.5 9 4.5-4.5L16.5 9" />
     <path d="M6 19h12" />
@@ -128,7 +160,7 @@ export const UploadIcon = ({ className, ...props }: IconProps) => (
 );
 
 export const CloudUploadIcon = ({ className, ...props }: IconProps) => (
-  <svg className={clsx('h-6 w-6', className)} {...baseProps} {...props}>
+  <svg className={clsx("h-6 w-6", className)} {...baseProps} {...props}>
     <path d="M8 18a4 4 0 1 1 .2-8A5.5 5.5 0 0 1 18 11.5a3.5 3.5 0 0 1-.5 6.9H8Z" />
     <path d="M12 15V7" />
     <path d="m8.5 10.5 3.5-3.5 3.5 3.5" />
@@ -136,58 +168,58 @@ export const CloudUploadIcon = ({ className, ...props }: IconProps) => (
 );
 
 export const PlusIcon = ({ className, ...props }: IconProps) => (
-  <svg className={clsx('h-4 w-4', className)} {...baseProps} {...props}>
+  <svg className={clsx("h-4 w-4", className)} {...baseProps} {...props}>
     <path d="M12 5v14M5 12h14" />
   </svg>
 );
 
 export const MenuIcon = ({ className, ...props }: IconProps) => (
-  <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
+  <svg className={clsx("h-5 w-5", className)} {...baseProps} {...props}>
     <path d="M4 7h16M4 12h16M4 17h16" />
   </svg>
 );
 
 export const ChevronDownIcon = ({ className, ...props }: IconProps) => (
-  <svg className={clsx('h-4 w-4', className)} {...baseProps} {...props}>
+  <svg className={clsx("h-4 w-4", className)} {...baseProps} {...props}>
     <path d="m6 9 6 6 6-6" />
   </svg>
 );
 
 export const CopyIcon = ({ className, ...props }: IconProps) => (
-  <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
-    <rect x="9" y="9" width="10" height="10" rx="2" />
-    <rect x="5" y="5" width="10" height="10" rx="2" />
+  <svg className={clsx("h-5 w-5", className)} {...baseProps} {...props}>
+    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2-2-2h10c1.1 0 2 .9 2 2" />
   </svg>
 );
 
 export const ShareIcon = ({ className, ...props }: IconProps) => (
-  <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
-    <circle cx="18" cy="5.5" r="2.2" fill="currentColor" stroke="none" />
-    <circle cx="6" cy="12" r="2.2" fill="currentColor" stroke="none" />
-    <circle cx="18" cy="18.5" r="2.2" fill="currentColor" stroke="none" />
-    <path d="M8 11l7.2-4.2" />
-    <path d="M8 13l7.2 4.2" />
+  <svg className={clsx("h-5 w-5", className)} {...baseProps} {...props}>
+    <circle cx="18" cy="5" r="3" />
+    <circle cx="6" cy="12" r="3" />
+    <circle cx="18" cy="19" r="3" />
+    <line x1="8.59" x2="15.42" y1="13.51" y2="17.49" />
+    <line x1="15.41" x2="8.59" y1="6.51" y2="10.49" />
   </svg>
 );
 
 export const DownloadIcon = ({ className, ...props }: IconProps) => (
-  <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
-    <path d="M12 4v10" />
-    <path d="m8 10 4 4 4-4" />
-    <path d="M5 18h14" />
+  <svg className={clsx("h-5 w-5", className)} {...baseProps} {...props}>
+    <path d="M12 17V3" />
+    <path d="m6 11 6 6 6-6" />
+    <path d="M19 21H5" />
   </svg>
 );
 
 export const MoreHorizontalIcon = ({ className, ...props }: IconProps) => (
-  <svg className={clsx('h-5 w-5', className)} {...baseProps} fill="currentColor" stroke="none" {...props}>
-    <path d="M5 10C6.10457 10 7 10.8954 7 12C7 13.1046 6.10457 14 5 14C3.89543 14 3 13.1046 3 12C3 10.8954 3.89543 10 5 10Z" />
-    <path d="M12 10C13.1046 10 14 10.8954 14 12C14 13.1046 13.1046 14 12 14C10.8954 14 10 13.1046 10 12C10 10.8954 10.8954 10 12 10Z" />
-    <path d="M21 12C21 10.8954 20.1046 10 19 10C17.8954 10 17 10.8954 17 12C17 13.1046 17.8954 14 19 14C20.1046 14 21 13.1046 21 12Z" />
+  <svg className={clsx("h-5 w-5", className)} {...baseProps} {...props}>
+    <circle cx="12" cy="12" r="1" />
+    <circle cx="19" cy="12" r="1" />
+    <circle cx="5" cy="12" r="1" />
   </svg>
 );
 
 export const LogOutIcon = ({ className, ...props }: IconProps) => (
-  <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
+  <svg className={clsx("h-5 w-5", className)} {...baseProps} {...props}>
     <path d="M10 17H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h4" />
     <path d="m15 8 4 4-4 4" />
     <path d="M19 12H9" />
@@ -195,16 +227,49 @@ export const LogOutIcon = ({ className, ...props }: IconProps) => (
 );
 
 export const UserIcon = ({ className, ...props }: IconProps) => (
-  <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
+  <svg className={clsx("h-5 w-5", className)} {...baseProps} {...props}>
     <path d="M20 21a8 8 0 1 0-16 0" />
     <circle cx="12" cy="8" r="3.5" />
   </svg>
 );
 
+export const UserPlusIcon = ({ className, ...props }: IconProps) => (
+  <svg className={clsx("h-4 w-4", className)} {...baseProps} {...props}>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="10" cy="7" r="4" />
+    <path d="M20 8v6" />
+    <path d="M17 11h6" />
+  </svg>
+);
+
+export const BackIcon = ({ className, ...props }: IconProps) => (
+  <svg
+    {...baseProps}
+    viewBox="0 0 24 24"
+    className={clsx("h-12 w-12 text-black", className)}
+    stroke="currentColor"
+    strokeWidth={2.2}
+    fill="none"
+    {...props}
+  >
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M13.5 7.5 8.5 12l5 4.5" />
+    <path d="M8.5 12h8" />
+  </svg>
+);
+
+export const UsersIcon = ({ className, ...props }: IconProps) => (
+  <svg className={clsx("h-4 w-4", className)} {...baseProps} {...props}>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="10" cy="7" r="4" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
+
 export const PencilIcon = ({ className, ...props }: IconProps) => (
-  <svg className={clsx('h-5 w-5', className)} {...baseProps} {...props}>
-    <path d="M4 20h4" />
-    <path d="m14.5 5.5 4 4L8 20H4v-4Z" />
-    <path d="M13 7 17 11" />
+  <svg className={clsx("h-5 w-5", className)} {...baseProps} {...props}>
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" />
   </svg>
 );

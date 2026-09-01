@@ -15,7 +15,7 @@ import {
   MenuIcon,
   PlusIcon,
   SearchIcon,
-  TextIcon,
+  SquareTextIcon,
   UserIcon,
   UploadIcon
 } from '../components/ui/Icon';
@@ -54,7 +54,7 @@ const navItems: Array<{
 }> = [
   { key: 'home', label: 'Home', icon: HomeIcon },
   { key: 'spaces', label: 'Spaces', icon: GridIcon },
-  { key: 'text', label: 'Text notes', icon: TextIcon },
+  { key: 'text', label: 'Text notes', icon: SquareTextIcon },
   { key: 'files', label: 'Files', icon: FileIcon },
   { key: 'images', label: 'Images', icon: ImageIcon },
   { key: 'search', label: 'Search', icon: SearchIcon }
@@ -872,7 +872,7 @@ export const DashboardPage = () => {
                   disabled={!token}
                   >
                   <span className="grid h-8 w-8 place-items-center rounded-2xl bg-slate-100 text-slate-600">
-                    <TextIcon />
+                    <SquareTextIcon />
                   </span>
                   <span className="text-left">
                     <span className="block text-[13px] font-medium text-slate-950">Create text note</span>
@@ -1041,7 +1041,7 @@ export const DashboardPage = () => {
               disabled={!token}
             >
               <span className={mobileQuickActionIconClass}>
-                <TextIcon className="h-5 w-5" />
+                <SquareTextIcon className="h-5 w-5" />
               </span>
               <span className={mobileQuickActionTextClass}>
                 <span className="block text-[12px] font-medium leading-4 text-slate-950">Create text note</span>

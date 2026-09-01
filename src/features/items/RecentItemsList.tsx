@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { Spinner } from '../../components/ui/Spinner';
-import { CalendarIcon, ClockIcon, CopyIcon, DownloadIcon, FileIcon, ImageIcon, ListIcon, LockIcon, MoreHorizontalIcon, PencilIcon, SearchIcon, ShareIcon, SortIcon, TextIcon, TrashIcon } from '../../components/ui/Icon';
+import { CalendarIcon, ClockIcon, CopyIcon, DownloadIcon, FileIcon, ImageIcon, ListIcon, LockIcon, MoreHorizontalIcon, SearchIcon, ShareIcon, SortIcon, TextIcon, TrashIcon } from '../../components/ui/Icon';
 import { FileTypeIcon } from '../../components/ui/FileTypeIcon';
 import { formatFileSize, formatRelativeTime } from '../../lib/format';
 import { getFileTypeKind, getFileTypeLabel } from '../../lib/file';
@@ -404,7 +404,7 @@ export const RecentItemsList = ({
                                   onChangeExpiration(item);
                                 }}
                               >
-                                <PencilIcon className="h-5 w-5" />
+                                <CalendarIcon className="h-5 w-5" />
                                 Change expiration
                               </button>
                               <button
@@ -451,7 +451,7 @@ export const RecentItemsList = ({
                                   onChangeExpiration(item);
                                 }}
                               >
-                                <PencilIcon className="h-5 w-5" />
+                                <CalendarIcon className="h-5 w-5" />
                                 Change expiration
                               </button>
                               <button
@@ -487,7 +487,7 @@ export const RecentItemsList = ({
                                   onChangeExpiration(item);
                                 }}
                               >
-                                <PencilIcon className="h-5 w-5" />
+                                <CalendarIcon className="h-5 w-5" />
                                 Change expiration
                               </button>
                               <button

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Textarea } from '../../components/ui/Textarea';
-import { MoreHorizontalIcon, PencilIcon, TextIcon, TrashIcon } from '../../components/ui/Icon';
+import { MoreHorizontalIcon, PencilIcon, RenameIcon, TextIcon, TrashIcon } from '../../components/ui/Icon';
 import type { Item } from './types';
 import { formatRelativeTime } from '../../lib/format';
 import { clsx } from 'clsx';
@@ -93,7 +93,7 @@ export const NoteViewModal = ({ open, item, onClose, onEdit, onRenameTitle, onDe
                       onRenameTitle(item);
                     }}
                   >
-                    <TextIcon className="h-5 w-5" />
+                    <RenameIcon className="h-5 w-5" />
                     Rename title
                   </button>
                   <button

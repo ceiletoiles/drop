@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { Spinner } from '../components/ui/Spinner';
-import { FileIcon, GridIcon, ImageIcon, LogOutIcon, MoreHorizontalIcon, PencilIcon, PlusIcon, TrashIcon } from '../components/ui/Icon';
+import { BackIcon, FileIcon, GridIcon, ImageIcon, LogOutIcon, MoreHorizontalIcon, PencilIcon, PlusIcon, TrashIcon } from '../components/ui/Icon';
 import { useAuth } from '../features/auth/auth-context';
 import { createSpace, deleteSpace, fetchSpaces, leaveSpace, renameSpace } from '../features/spaces/spaces-api';
 import type { SpaceSummary } from '../../shared/types';
@@ -217,14 +217,12 @@ export const SpacesPage = () => {
           <div className="absolute left-0 top-0 sm:top-1">
             <Button
               type="button"
-              variant="secondary"
+              variant="ghost"
               onClick={() => navigate('/')}
-              className="h-12 w-12 shrink-0 rounded-full p-0"
+              className="h-16 w-16 shrink-0 rounded-full border border-slate-200 bg-white/90 p-0 text-black shadow-sm hover:bg-slate-100"
               aria-label="Back to drop"
             >
-              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="m15 18-6-6 6-6" />
-              </svg>
+              <BackIcon className="h-12 w-12" />
             </Button>
           </div>
 
