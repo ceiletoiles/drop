@@ -38,6 +38,8 @@ const expirationLabels: Record<ExpirationType, string> = {
   '1_MONTH': '1 month'
 };
 
+const actionControlClasses = 'h-10 min-h-10 w-full items-center justify-center';
+
 export const UploadDropzone = ({
   onUpload,
   onBrowse,
@@ -124,7 +126,7 @@ export const UploadDropzone = ({
         </p>
         <div className="mt-4 flex w-full max-w-2xl flex-row items-start justify-center gap-3">
           <div className="min-w-0 flex-1 text-center sm:w-40 sm:flex-none">
-            <Button type="button" variant="secondary" onClick={onBrowse} disabled={disabled || busy} className="w-full px-4 py-2.5">
+            <Button type="button" variant="secondary" onClick={onBrowse} disabled={disabled || busy} className={`${actionControlClasses} px-4 py-2.5`}>
               {busy ? <Spinner /> : <><PlusIcon /> Upload</>}
             </Button>
             <span className="mt-1.5 block text-xs text-slate-500">Max 25 MB</span>
@@ -138,7 +140,7 @@ export const UploadDropzone = ({
                 aria-expanded={expirationMenuOpen}
                 disabled={defaultExpirationDisabled || disabled}
                 onClick={() => setExpirationMenuOpen((open) => !open)}
-                className="relative flex min-h-[2.625rem] w-full items-center justify-center rounded-2xl border border-slate-200 bg-white/90 px-4 py-2.5 text-center text-sm font-medium text-slate-950 shadow-sm outline-none transition hover:bg-white focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 disabled:pointer-events-none disabled:opacity-50"
+                className={`${actionControlClasses} relative flex rounded-2xl border border-slate-200 bg-white/90 px-4 py-2.5 text-center text-sm font-medium text-slate-950 shadow-sm outline-none transition hover:bg-white focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 disabled:pointer-events-none disabled:opacity-50`}
               >
                 <span className="flex items-center gap-2">
                   <ExpirationIcon className="h-5 w-5 text-slate-500" />

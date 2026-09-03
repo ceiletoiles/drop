@@ -579,7 +579,7 @@ export const SpacePage = () => {
                 className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 text-slate-700 shadow-none transition hover:bg-transparent hover:text-slate-950"
                 aria-label="Back to spaces"
               >
-                <ArrowBackIcon className="h-7 w-7" />
+                <ArrowBackIcon className="h-7 w-7 translate-y-[9.8px]" />
               </button>
               <div className="min-w-0">
                 <h1 className="truncate text-[20px] font-semibold tracking-tight text-slate-950 sm:text-[1.9rem]">{space?.name ?? 'Space'}</h1>

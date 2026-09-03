@@ -214,7 +214,7 @@ export const SpacesPage = () => {
     <AppShell>
       <div ref={rootRef} className="mx-auto flex min-h-[calc(100vh-1.5rem)] w-full max-w-6xl flex-col gap-6 pt-1 sm:pt-2">
         <header className="relative flex items-start justify-center gap-4 pt-1 sm:pt-2">
-          <div className="absolute left-0 top-0 sm:top-1">
+          <div className="absolute left-0 top-4">
             <button
               type="button"
               onClick={() => navigate('/')}

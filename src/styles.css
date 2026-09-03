@@ -38,4 +38,12 @@
     background: rgba(99, 102, 241, 0.2);
     color: #0f172a;
   }
+
+  .scrollbar-hidden {
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
 }

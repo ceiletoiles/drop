@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { Spinner } from '../../components/ui/Spinner';
-import { CalendarIcon, ClockIcon, CopyIcon, DownloadIcon, FileIcon, ImageIcon, ListIcon, LockIcon, MoreHorizontalIcon, SearchIcon, ShareIcon, SortIcon, TextIcon, TrashIcon } from '../../components/ui/Icon';
+import { CalendarIcon, ClockIcon, CopyIcon, DownloadIcon, ExpirationIcon, FileIcon, ImageIcon, ListIcon, LockIcon, MoreHorizontalIcon, SearchIcon, ShareIcon, SortIcon, TextIcon, TrashIcon } from '../../components/ui/Icon';
 import { FileTypeIcon } from '../../components/ui/FileTypeIcon';
 import { formatFileSize, formatRelativeTime } from '../../lib/format';
 import { getFileTypeKind, getFileTypeLabel } from '../../lib/file';
@@ -290,7 +290,7 @@ export const RecentItemsList = ({
                       <p className="truncate text-sm font-semibold leading-5 text-slate-950" title={item.title}>
                         {item.title}
                       </p>
-                      <p className="mt-1 flex min-w-0 flex-nowrap items-center gap-1.5 overflow-hidden whitespace-nowrap text-[10px] leading-none text-slate-500 sm:flex-wrap sm:gap-x-2 sm:gap-y-1 sm:text-xs">
+                      <p className="scrollbar-hidden mt-1 flex min-w-0 flex-nowrap items-center gap-1.5 overflow-x-auto overflow-y-hidden whitespace-nowrap text-[10px] leading-none text-slate-500 sm:gap-x-2 sm:text-xs">
                         <span className="shrink-0 text-[10px] font-medium leading-none text-indigo-600 sm:text-[11px]">
                           {getFileTypeLabel({ itemType: item.type, filename: item.file?.originalName, mimeType: item.file?.mimeType })}
                         </span>
@@ -305,7 +305,7 @@ export const RecentItemsList = ({
                           </>
                         ) : null}
                         <span className="flex shrink-0 items-center gap-1 text-slate-500">
-                          <TrashIcon className="h-3 w-3" />
+                          <ExpirationIcon className="h-[10px] w-[10px] sm:h-3 sm:w-3" />
                           <span className="shrink-0">{getRecentItemExpirationLabel(item)}</span>
                         </span>
                         {scope === 'personal' && item.share ? (
