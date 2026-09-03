@@ -182,6 +182,10 @@ export interface ActivitiesResponse {
   activities: ActivitySummary[];
 }
 
+export interface UploadDefaultExpirationResponse {
+  uploadDefaultExpirationType: ExpirationType;
+}
+
 export interface CreateTextResponse {
   item: ItemSummary;
 }

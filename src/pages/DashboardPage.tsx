@@ -30,6 +30,7 @@ import { UploadDropzone, type UploadItemState } from '../features/items/UploadDr
 import { useItems } from '../features/items/useItems';
 import { createShare, fetchItemShare, revokeShare } from '../features/share/share-api';
 import { ShareModal } from '../features/share/ShareModal';
+import { fetchUploadDefaultExpirationType, updateUploadDefaultExpirationType } from '../features/settings/preferences-api';
 import type { Item } from '../features/items/types';
 import { apiUrl } from '../lib/env';
 import { getFileTypeKind } from '../lib/file';
@@ -77,6 +78,7 @@ const mobileQuickActionButtonClass =
 const mobileQuickActionIconClass =
   'grid h-9 w-9 shrink-0 place-items-center rounded-2xl text-slate-600';
 const mobileQuickActionTextClass = 'min-w-0 flex-1 text-left';
+const uploadDefaultExpirationCache = new Map<string, ExpirationType>();
 
 const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
@@ -105,6 +107,15 @@ export const DashboardPage = () => {
   const [renameLoading, setRenameLoading] = useState(false);
   const [pendingTextDraft, setPendingTextDraft] = useState<{ title: string; content: string } | null>(null);
   const [newTextExpirationType, setNewTextExpirationType] = useState<ExpirationType>(DEFAULT_EXPIRATION_TYPE);
+  const preferenceCacheKey = user?.id ?? session?.access_token ?? '';
+  const [uploadDefaultExpirationType, setUploadDefaultExpirationType] = useState<ExpirationType>(
+    () => uploadDefaultExpirationCache.get(preferenceCacheKey) ?? DEFAULT_EXPIRATION_TYPE
+  );
+  const [uploadDefaultExpirationLoading, setUploadDefaultExpirationLoading] = useState(
+    () => !uploadDefaultExpirationCache.has(preferenceCacheKey)
+  );
+  const [uploadDefaultExpirationSaving, setUploadDefaultExpirationSaving] = useState(false);
+  const [uploadDefaultExpirationError, setUploadDefaultExpirationError] = useState<string | null>(null);
   const [expirationItem, setExpirationItem] = useState<Item | null>(null);
   const [shareItem, setShareItem] = useState<Item | null>(null);
   const [shareLink, setShareLink] = useState<string | null>(null);
@@ -126,10 +137,12 @@ export const DashboardPage = () => {
   const shareRequestRef = useRef<string | null>(null);
   const previewRequestRef = useRef(0);
   const clipboardPasteHandlerRef = useRef<(event: ClipboardEvent) => void>(() => undefined);
+  const uploadDefaultExpirationTouchedRef = useRef(false);
   const apiConfigured = !needsApiOverride();
   const { items, loading, error, refresh } = useItems(session?.access_token ?? null, '', apiConfigured);
 
   const token = session?.access_token ?? '';
+  const uploadActionsDisabled = !token || uploadDefaultExpirationLoading || uploadDefaultExpirationSaving;
   const uploadBusy = uploadItems.some((item) => item.status === 'queued' || item.status === 'uploading');
   const uploadStatus = uploadItems.length
     ? `${uploadItems.filter((item) => item.status === 'uploading').length} uploading, ${uploadItems.filter((item) => item.status === 'queued').length} queued`
@@ -267,6 +280,49 @@ export const DashboardPage = () => {
     window.addEventListener('paste', handlePaste);
     return () => window.removeEventListener('paste', handlePaste);
   }, []);
+
+  useEffect(() => {
+    if (!token) {
+      uploadDefaultExpirationTouchedRef.current = false;
+      setUploadDefaultExpirationType(DEFAULT_EXPIRATION_TYPE);
+      setUploadDefaultExpirationLoading(false);
+      setUploadDefaultExpirationSaving(false);
+      setUploadDefaultExpirationError(null);
+      return;
+    }
+
+    const cacheKey = user?.id ?? token;
+    const cachedExpirationType = uploadDefaultExpirationCache.get(cacheKey);
+    if (cachedExpirationType) {
+      setUploadDefaultExpirationType(cachedExpirationType);
+      setUploadDefaultExpirationLoading(false);
+      setUploadDefaultExpirationSaving(false);
+      setUploadDefaultExpirationError(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    uploadDefaultExpirationTouchedRef.current = false;
+    setUploadDefaultExpirationLoading(true);
+    setUploadDefaultExpirationError(null);
+
+    fetchUploadDefaultExpirationType(token)
+      .then((response) => {
+        if (controller.signal.aborted) return;
+        if (!uploadDefaultExpirationTouchedRef.current) {
+          setUploadDefaultExpirationType(response.uploadDefaultExpirationType);
+          uploadDefaultExpirationCache.set(cacheKey, response.uploadDefaultExpirationType);
+        }
+        setUploadDefaultExpirationLoading(false);
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        setUploadDefaultExpirationError(error instanceof Error ? error.message : 'Failed to load upload default.');
+        setUploadDefaultExpirationLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [token, user?.id]);
 
   const filteredItems = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -510,7 +566,7 @@ export const DashboardPage = () => {
     controller.abort();
   };
 
-  const startUpload = async (file: File, uploadId: string, signal?: AbortSignal) => {
+  const startUpload = async (file: File, uploadId: string, expirationType: ExpirationType, signal?: AbortSignal) => {
     if (!token) throw new Error('Missing session.');
 
     updateUploadItem(uploadId, (item) => ({
@@ -521,7 +577,7 @@ export const DashboardPage = () => {
     }));
 
     try {
-      await uploadFile(token, file, DEFAULT_EXPIRATION_TYPE, (progress) => {
+      await uploadFile(token, file, expirationType, (progress) => {
         updateUploadItem(uploadId, (item) => ({
           ...item,
           status: 'uploading',
@@ -552,6 +608,29 @@ export const DashboardPage = () => {
     }
   };
 
+  const handleUploadDefaultExpirationChange = async (value: ExpirationType) => {
+    if (!token) return;
+
+    uploadDefaultExpirationTouchedRef.current = true;
+    const previousValue = uploadDefaultExpirationType;
+    const cacheKey = user?.id ?? token;
+    setUploadDefaultExpirationType(value);
+    uploadDefaultExpirationCache.set(cacheKey, value);
+    setUploadDefaultExpirationSaving(true);
+    setUploadDefaultExpirationError(null);
+
+    try {
+      await updateUploadDefaultExpirationType(token, value);
+    } catch (error) {
+      setUploadDefaultExpirationType(previousValue);
+      uploadDefaultExpirationCache.set(cacheKey, previousValue);
+      setUploadDefaultExpirationError(error instanceof Error ? error.message : 'Failed to save upload default.');
+      showAction(error instanceof Error ? error.message : 'Failed to save upload default.');
+    } finally {
+      setUploadDefaultExpirationSaving(false);
+    }
+  };
+
   const handleFileBrowse = (accept: string, inputRef: RefObject<HTMLInputElement | null>) => {
     const input = inputRef.current;
     if (!input) return;
@@ -560,13 +639,16 @@ export const DashboardPage = () => {
   };
 
   const handleUploadFiles = async (files: File[]) => {
+    if (uploadActionsDisabled) return;
+
     const selectedFiles = files.filter((file) => file.size > 0);
     if (selectedFiles.length === 0) return;
 
+    const expirationType = uploadDefaultExpirationType;
     const uploads = selectedFiles.map((file) => ({ file, uploadId: addUploadItem(file) }));
     try {
       await Promise.allSettled(
-        uploads.map(({ file, uploadId }) => startUpload(file, uploadId, uploadControllersRef.current.get(uploadId)?.signal))
+        uploads.map(({ file, uploadId }) => startUpload(file, uploadId, expirationType, uploadControllersRef.current.get(uploadId)?.signal))
       );
     } catch (error) {
       void error;
@@ -856,10 +938,21 @@ export const DashboardPage = () => {
                   onUpload={handleUploadFiles}
                   onBrowse={() => handleFileBrowse('', fileInputRef)}
                   onCancelUpload={cancelUpload}
-                  disabled={!token}
+                  disabled={uploadActionsDisabled}
                   busy={uploadBusy}
                   uploads={uploadItems}
                   status={uploadStatus}
+                  defaultExpirationType={uploadDefaultExpirationType}
+                  defaultExpirationDisabled={uploadActionsDisabled}
+                  defaultExpirationStatus={
+                    uploadDefaultExpirationLoading
+                      ? 'Loading your saved default...'
+                      : uploadDefaultExpirationSaving
+                        ? 'Saving to your account...'
+                        : null
+                  }
+                  defaultExpirationError={uploadDefaultExpirationError}
+                  onDefaultExpirationTypeChange={handleUploadDefaultExpirationChange}
                 />
               </div>
 
@@ -883,7 +976,7 @@ export const DashboardPage = () => {
                   variant="secondary"
                   className="w-full justify-start px-3 py-2.5 text-left !bg-transparent hover:!bg-slate-100 xl:h-full xl:min-h-0"
                   onClick={() => handleFileBrowse('', fileInputRef)}
-                  disabled={!token}
+                  disabled={uploadActionsDisabled}
                   >
                   <span className="grid h-8 w-8 place-items-center rounded-2xl bg-slate-100 text-slate-600">
                     <UploadIcon />
@@ -897,7 +990,7 @@ export const DashboardPage = () => {
                   variant="secondary"
                   className="w-full justify-start px-3 py-2.5 text-left !bg-transparent hover:!bg-slate-100 xl:h-full xl:min-h-0"
                   onClick={() => handleFileBrowse('image/*', imageInputRef)}
-                  disabled={!token}
+                  disabled={uploadActionsDisabled}
                   >
                   <span className="grid h-8 w-8 place-items-center rounded-2xl bg-slate-100 text-slate-600">
                     <ImageIcon />
@@ -1055,7 +1148,7 @@ export const DashboardPage = () => {
                 setMobileActionsOpen(false);
                 handleFileBrowse('', fileInputRef);
               }}
-              disabled={!token}
+              disabled={uploadActionsDisabled}
             >
               <span className={mobileQuickActionIconClass}>
                 <UploadIcon className="h-5 w-5" />
@@ -1072,7 +1165,7 @@ export const DashboardPage = () => {
                 setMobileActionsOpen(false);
                 handleFileBrowse('image/*', imageInputRef);
               }}
-              disabled={!token}
+              disabled={uploadActionsDisabled}
             >
               <span className={mobileQuickActionIconClass}>
                 <ImageIcon className="h-5 w-5" />
@@ -1256,7 +1349,7 @@ export const DashboardPage = () => {
         onChange={async (event) => {
           const files = Array.from(event.target.files ?? []);
           event.target.value = '';
-          if (files.length && token) {
+          if (files.length && !uploadActionsDisabled) {
             await handleUploadFiles(files);
           }
         }}
@@ -1270,7 +1363,7 @@ export const DashboardPage = () => {
         onChange={async (event) => {
           const files = Array.from(event.target.files ?? []);
           event.target.value = '';
-          if (files.length && token) {
+          if (files.length && !uploadActionsDisabled) {
             await handleUploadFiles(files);
           }
         }}

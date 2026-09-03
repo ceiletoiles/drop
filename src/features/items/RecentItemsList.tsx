@@ -11,6 +11,9 @@ import { getFileTypeKind, getFileTypeLabel } from '../../lib/file';
 import { clsx } from 'clsx';
 import { getExpirationSummary } from '../../lib/expiration';
 
+const getRecentItemExpirationLabel = (item: Item) =>
+  item.expirationType === 'CONSUME' ? 'Instant' : getExpirationSummary(item.expirationType, item.expiresAt, item.type);
+
 interface RecentItemsListProps {
   items: Item[];
   loading: boolean;
@@ -301,9 +304,9 @@ export const RecentItemsList = ({
                             <span className="shrink-0 text-slate-500">{`Uploaded by ${item.uploadedByName}`}</span>
                           </>
                         ) : null}
-                        <span className="hidden shrink-0 items-center gap-1 text-slate-500 sm:flex">
+                        <span className="flex shrink-0 items-center gap-1 text-slate-500">
                           <TrashIcon className="h-3 w-3" />
-                          <span className="shrink-0">{getExpirationSummary(item.expirationType, item.expiresAt, item.type)}</span>
+                          <span className="shrink-0">{getRecentItemExpirationLabel(item)}</span>
                         </span>
                         {scope === 'personal' && item.share ? (
                           <>

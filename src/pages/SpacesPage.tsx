@@ -215,15 +215,14 @@ export const SpacesPage = () => {
       <div ref={rootRef} className="mx-auto flex min-h-[calc(100vh-1.5rem)] w-full max-w-6xl flex-col gap-6 pt-1 sm:pt-2">
         <header className="relative flex items-start justify-center gap-4 pt-1 sm:pt-2">
           <div className="absolute left-0 top-0 sm:top-1">
-            <Button
+            <button
               type="button"
-              variant="ghost"
               onClick={() => navigate('/')}
-              className="h-12 w-12 shrink-0 rounded-full border-0 bg-transparent p-0 text-black shadow-none hover:bg-transparent"
+              className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 text-slate-700 shadow-none transition hover:bg-transparent hover:text-slate-950"
               aria-label="Back to drop"
             >
               <ArrowBackIcon className="h-7 w-7" />
-            </Button>
+            </button>
           </div>
 
           <div className="min-w-0 max-w-2xl px-16 text-center sm:px-24">

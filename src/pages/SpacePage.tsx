@@ -60,6 +60,7 @@ export const SpacePage = () => {
   const [query, setQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [uploadItems, setUploadItems] = useState<UploadItemState[]>([]);
+  const [uploadExpirationType, setUploadExpirationType] = useState<(typeof SPACE_EXPIRATION_TYPES)[number]>('24_HOURS');
   const [draftOpen, setDraftOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [viewItem, setViewItem] = useState<Item | null>(null);
@@ -215,7 +216,7 @@ export const SpacePage = () => {
     const uploads = selectedFiles.map((file) => ({ file, uploadId: addUploadItem(file) }));
     await Promise.allSettled(
       uploads.map(({ file, uploadId }) =>
-        uploadSpaceFile(token, spaceId, file, '24_HOURS', (progress) => {
+        uploadSpaceFile(token, spaceId, file, uploadExpirationType, (progress) => {
           updateUploadItem(uploadId, (item) => ({
             ...item,
             status: 'uploading',
@@ -280,6 +281,8 @@ export const SpacePage = () => {
 
   const handleDelete = async (item: Item) => {
     if (!token || !spaceId) return;
+    if (!window.confirm(`Delete "${item.title}"?`)) return;
+
     try {
       await deleteSpaceItem(token, spaceId, item.id);
       await refresh();
@@ -570,15 +573,14 @@ export const SpacePage = () => {
         <header className="relative flex w-full min-w-0 flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-3">
-              <Button
+              <button
                 type="button"
-                variant="ghost"
                 onClick={() => navigate('/spaces')}
-                className="h-12 w-12 shrink-0 rounded-full border-0 bg-transparent p-0 text-black shadow-none hover:bg-transparent"
+                className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 text-slate-700 shadow-none transition hover:bg-transparent hover:text-slate-950"
                 aria-label="Back to spaces"
               >
                 <ArrowBackIcon className="h-7 w-7" />
-              </Button>
+              </button>
               <div className="min-w-0">
                 <h1 className="truncate text-[20px] font-semibold tracking-tight text-slate-950 sm:text-[1.9rem]">{space?.name ?? 'Space'}</h1>
                 <p className="mt-1 text-[13px] leading-5 text-slate-500">{memberCount} members</p>
@@ -598,10 +600,9 @@ export const SpacePage = () => {
           </div>
 
           <div className="absolute right-0 top-0 md:hidden">
-            <Button
+            <button
               type="button"
-              variant="secondary"
-              className="h-14 w-14 shrink-0 rounded-full !border-0 !bg-transparent p-0 text-slate-700 !shadow-none hover:!bg-transparent hover:text-slate-950"
+              className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 text-slate-700 shadow-none transition hover:bg-transparent hover:text-slate-950"
               aria-label="Space options"
               aria-expanded={mobileMenuOpen}
               onClick={() => setMobileMenuOpen((current) => !current)}
@@ -612,7 +613,7 @@ export const SpacePage = () => {
                 <circle cx="12" cy="12" r="1.45" fill="currentColor" stroke="none" />
                 <circle cx="12" cy="19" r="1.45" fill="currentColor" stroke="none" />
               </svg>
-            </Button>
+            </button>
             {mobileMenuOpen ? (
               <div
                 className="absolute right-0 top-full z-20 mt-2 w-48 rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_18px_45px_rgba(15,23,42,0.16)]"
@@ -706,6 +707,10 @@ export const SpacePage = () => {
                 busy={uploadBusy}
                 uploads={uploadItems}
                 status={uploadStatus}
+                defaultExpirationType={uploadExpirationType}
+                defaultExpirationDisabled={!token || busy}
+                onDefaultExpirationTypeChange={(value) => setUploadExpirationType(value as (typeof SPACE_EXPIRATION_TYPES)[number])}
+                expirationOptions={SPACE_EXPIRATION_TYPES}
               />
 
               <RecentItemsList

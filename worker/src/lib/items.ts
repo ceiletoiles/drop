@@ -1,11 +1,12 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { createTextItemSchema, expirationTypeSchema, updateTextItemSchema } from '../../../shared/schemas';
-import { DEFAULT_EXPIRATION_TYPE, MAX_UPLOAD_BYTES } from '../../../shared/constants';
+import { MAX_UPLOAD_BYTES } from '../../../shared/constants';
 import type { ExpirationType, FileMetadata, ItemSummary, ItemType, ShareCreateResponse, ShareResponse, ShareSummary, SharedItemSummary } from '../../../shared/types';
 import { sanitizeFilename } from '../../../shared/utils';
 import type { Env } from '../types';
 import { deleteFile, getFile, putFile } from './storage';
 import { recordActivity } from './activity';
+import { getUploadDefaultExpirationType } from './user-preferences';
 
 interface ItemRow {
   id: string;
@@ -618,7 +619,9 @@ export const uploadItem = async (
     throw new Error('File is too large.');
   }
 
-  const parsedExpiration = expirationTypeSchema.parse(expirationType ?? DEFAULT_EXPIRATION_TYPE);
+  const parsedExpiration = expirationType
+    ? expirationTypeSchema.parse(expirationType)
+    : (await getUploadDefaultExpirationType(env, userId)).uploadDefaultExpirationType;
   const db = createDb(env);
   const safeName = sanitizeFilename(file.name || 'upload');
   const storageKey = `${userId}/${crypto.randomUUID()}-${safeName}`;

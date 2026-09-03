@@ -1,8 +1,9 @@
-import { useState, type DragEvent } from 'react';
+import { useEffect, useRef, useState, type DragEvent } from 'react';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
-import { PlusIcon } from '../../components/ui/Icon';
+import { ChevronDownIcon, ExpirationIcon, PlusIcon } from '../../components/ui/Icon';
 import { clsx } from 'clsx';
+import type { ExpirationType } from '../../../shared/types';
 
 export interface UploadItemState {
   id: string;
@@ -21,7 +22,21 @@ interface UploadDropzoneProps {
   busy?: boolean;
   uploads?: UploadItemState[];
   status?: string | null;
+  defaultExpirationType?: ExpirationType;
+  defaultExpirationDisabled?: boolean;
+  defaultExpirationStatus?: string | null;
+  defaultExpirationError?: string | null;
+  onDefaultExpirationTypeChange?: (value: ExpirationType) => void;
+  expirationOptions?: readonly ExpirationType[];
 }
+
+const expirationTypes: ExpirationType[] = ['CONSUME', '24_HOURS', '7_DAYS', '1_MONTH'];
+const expirationLabels: Record<ExpirationType, string> = {
+  CONSUME: 'Instant',
+  '24_HOURS': '24 hours',
+  '7_DAYS': '7 days',
+  '1_MONTH': '1 month'
+};
 
 export const UploadDropzone = ({
   onUpload,
@@ -30,9 +45,37 @@ export const UploadDropzone = ({
   disabled,
   busy = false,
   uploads = [],
-  status = null
+  status = null,
+  defaultExpirationType,
+  defaultExpirationDisabled = false,
+  defaultExpirationStatus = null,
+  defaultExpirationError = null,
+  onDefaultExpirationTypeChange,
+  expirationOptions = expirationTypes
 }: UploadDropzoneProps) => {
   const [dragging, setDragging] = useState(false);
+  const [expirationMenuOpen, setExpirationMenuOpen] = useState(false);
+  const expirationMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!expirationMenuOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!expirationMenuRef.current?.contains(event.target as Node)) {
+        setExpirationMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setExpirationMenuOpen(false);
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [expirationMenuOpen]);
 
   const handleDrop = async (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -46,7 +89,7 @@ export const UploadDropzone = ({
   return (
     <div
       className={clsx(
-        'w-full min-w-0 overflow-hidden rounded-[2rem] border border-dashed px-4 py-5 transition sm:px-5 sm:py-6',
+        'w-full min-w-0 overflow-visible rounded-[2rem] border border-dashed px-4 py-5 transition sm:px-5 sm:py-6',
         dragging ? 'border-indigo-400 bg-indigo-50 shadow-[0_0_0_1px_rgba(99,102,241,0.18)]' : 'border-[#8B7AE8] bg-[#F5F3FF]'
       )}
       onDragEnter={() => setDragging(true)}
@@ -79,11 +122,59 @@ export const UploadDropzone = ({
         <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
           Drag one or more files here, paste text or images, or use the quick actions on the right.
         </p>
-        <div className="mt-4 flex flex-col items-center gap-1.5">
-          <Button type="button" variant="secondary" onClick={onBrowse} disabled={disabled || busy} className="min-w-36 px-4 py-2.5">
-            {busy ? <Spinner /> : <><PlusIcon /> Add something</>}
-          </Button>
-          <span className="text-xs text-slate-500">Max 25 MB</span>
+        <div className="mt-4 flex w-full max-w-2xl flex-row items-start justify-center gap-3">
+          <div className="min-w-0 flex-1 text-center sm:w-40 sm:flex-none">
+            <Button type="button" variant="secondary" onClick={onBrowse} disabled={disabled || busy} className="w-full px-4 py-2.5">
+              {busy ? <Spinner /> : <><PlusIcon /> Upload</>}
+            </Button>
+            <span className="mt-1.5 block text-xs text-slate-500">Max 25 MB</span>
+          </div>
+
+          {defaultExpirationType && onDefaultExpirationTypeChange ? (
+            <div ref={expirationMenuRef} className="relative min-w-0 flex-1 text-center sm:w-40 sm:flex-none">
+              <button
+                type="button"
+                aria-haspopup="listbox"
+                aria-expanded={expirationMenuOpen}
+                disabled={defaultExpirationDisabled || disabled}
+                onClick={() => setExpirationMenuOpen((open) => !open)}
+                className="relative flex min-h-[2.625rem] w-full items-center justify-center rounded-2xl border border-slate-200 bg-white/90 px-4 py-2.5 text-center text-sm font-medium text-slate-950 shadow-sm outline-none transition hover:bg-white focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 disabled:pointer-events-none disabled:opacity-50"
+              >
+                <span className="flex items-center gap-2">
+                  <ExpirationIcon className="h-5 w-5 text-slate-500" />
+                  <span>Expiration</span>
+                </span>
+                <ChevronDownIcon className="absolute right-4 h-4 w-4 text-slate-400" />
+              </button>
+              <span className="mt-1.5 block text-xs text-slate-500">{expirationLabels[defaultExpirationType]}</span>
+              {expirationMenuOpen ? (
+                <div role="listbox" aria-label="Expiration" className="absolute left-0 z-10 mt-2 w-48 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-lg">
+                  {expirationOptions.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      role="option"
+                      aria-selected={defaultExpirationType === option}
+                      onClick={() => {
+                        onDefaultExpirationTypeChange(option);
+                        setExpirationMenuOpen(false);
+                      }}
+                      className={clsx(
+                        'w-full rounded-xl px-3 py-2 text-left text-sm transition hover:bg-slate-100',
+                        defaultExpirationType === option ? 'bg-sky-50 font-medium text-sky-700' : 'text-slate-700'
+                      )}
+                    >
+                      {expirationLabels[option]}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              <div className="mt-1.5">
+                {defaultExpirationStatus ? <span className="text-xs text-slate-400">{defaultExpirationStatus}</span> : null}
+                {defaultExpirationError ? <span className="text-xs text-rose-600">{defaultExpirationError}</span> : null}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {uploads.length > 0 ? (

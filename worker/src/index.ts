@@ -18,6 +18,7 @@ import {
   updateText,
   uploadItem
 } from './lib/items';
+import { getUploadDefaultExpirationType, setUploadDefaultExpirationType } from './lib/user-preferences';
 import {
   copySpaceItemText,
   createSpace,
@@ -286,6 +287,21 @@ const handleItems = async (request: Request, env: Env, userId: string) => {
     const limit = Number.parseInt(url.searchParams.get('limit') ?? '20', 10);
     const activities = await listActivities(env, userId, Number.isFinite(limit) ? limit : 20);
     return corsResponse(request, { activities });
+  }
+
+  if (method === 'GET' && url.pathname === '/api/me/upload-default-expiration') {
+    const payload = await getUploadDefaultExpirationType(env, userId);
+    return corsResponse(request, payload);
+  }
+
+  if (method === 'PATCH' && url.pathname === '/api/me/upload-default-expiration') {
+    const body = await readBody(request);
+    const payload = await setUploadDefaultExpirationType(
+      env,
+      userId,
+      typeof body.uploadDefaultExpirationType === 'string' ? body.uploadDefaultExpirationType : ''
+    );
+    return corsResponse(request, payload);
   }
 
   if (method === 'POST' && url.pathname === '/api/activity') {

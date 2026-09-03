@@ -92,6 +92,17 @@ export const ClockIcon = ({ className, ...props }: IconProps) => (
   </svg>
 );
 
+export const ExpirationIcon = ({ className, ...props }: IconProps) => (
+  <svg className={clsx("h-5 w-5", className)} {...baseProps} {...props}>
+    <path d="M12 2a10 10 0 0 1 7.38 16.75" />
+    <path d="M12 6v6l4 2" />
+    <path d="M2.5 8.875a10 10 0 0 0-.5 3" />
+    <path d="M2.83 16a10 10 0 0 0 2.43 3.4" />
+    <path d="M4.636 5.235a10 10 0 0 1 .891-.857" />
+    <path d="M8.644 21.42a10 10 0 0 0 7.631-.38" />
+  </svg>
+);
+
 export const CalendarIcon = ({ className, ...props }: IconProps) => (
   <svg className={clsx("h-5 w-5", className)} {...baseProps} {...props}>
     <rect x="4" y="5.5" width="16" height="14.5" rx="2" />
