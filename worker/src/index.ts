@@ -9,6 +9,8 @@ import {
   deleteItem,
   downloadItemFile,
   downloadSharedItemFile,
+  extendExpiration,
+  reduceExpiration,
   getItemShareLink,
   getSharedItem,
   listItems,
@@ -255,14 +257,26 @@ const handlePublicShare = async (request: Request, env: Env) => {
   }
 
   if (request.method === 'GET' && segments[4] === 'download') {
-    const { object, fileRow } = await downloadSharedItemFile(env, token);
+    const { object, fileRow, consume } = await downloadSharedItemFile(env, token);
     const headers = new Headers();
     headers.set('Content-Type', fileRow.mime_type || object.httpMetadata?.contentType || 'application/octet-stream');
     headers.set('Content-Length', object.size.toString());
     headers.set('Content-Disposition', `attachment; filename="${fileRow.original_name.replace(/"/g, '\\"')}"`);
     headers.set('Cache-Control', 'private, no-store');
     headers.set('X-Content-Type-Options', 'nosniff');
-    return withCors(request, new Response(object.body, { headers }));
+    const body = consume
+      ? object.body.pipeThrough(
+          new TransformStream<Uint8Array, Uint8Array>({
+            transform(chunk, controller) {
+              controller.enqueue(chunk);
+            },
+            async flush() {
+              await consume();
+            }
+          })
+        )
+      : object.body;
+    return withCors(request, new Response(body, { headers }));
   }
 
   if (request.method === 'POST' && segments[4] === 'copy') {
@@ -376,6 +390,26 @@ const handleItems = async (request: Request, env: Env, userId: string) => {
     const body = await readBody(request);
     const expirationType = expirationTypeSchema.parse(body.expirationType);
     const item = await updateExpiration(env, userId, itemId, { expirationType });
+    return corsResponse(request, { item });
+  }
+
+  if (method === 'POST' && url.pathname.startsWith('/api/items/') && url.pathname.endsWith('/expiration/extend')) {
+    const segments = url.pathname.split('/');
+    const itemId = segments[3];
+    if (!itemId) return errorResponse(400, 'Invalid item id.');
+    const body = await readBody(request);
+    const expirationType = expirationTypeSchema.exclude(['CONSUME']).parse(body.expirationType);
+    const item = await extendExpiration(env, userId, itemId, expirationType);
+    return corsResponse(request, { item });
+  }
+
+  if (method === 'POST' && url.pathname.startsWith('/api/items/') && url.pathname.endsWith('/expiration/reduce')) {
+    const segments = url.pathname.split('/');
+    const itemId = segments[3];
+    if (!itemId) return errorResponse(400, 'Invalid item id.');
+    const body = await readBody(request);
+    const expirationType = expirationTypeSchema.exclude(['CONSUME']).parse(body.expirationType);
+    const item = await reduceExpiration(env, userId, itemId, expirationType);
     return corsResponse(request, { item });
   }
 

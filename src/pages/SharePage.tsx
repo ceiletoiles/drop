@@ -188,7 +188,7 @@ export const SharePage = () => {
                   </div>
                 ) : item.type === 'file' ? (
                   <div className="space-y-4">
-                    {isImage && downloadUrl ? (
+                    {isImage && downloadUrl && item.expirationType !== 'CONSUME' ? (
                       <div className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-slate-100">
                         <img
                           src={downloadUrl}

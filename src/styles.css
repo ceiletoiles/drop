@@ -39,11 +39,9 @@
     color: #0f172a;
   }
 
-  .scrollbar-hidden {
-    scrollbar-width: none;
-  }
-
   .scrollbar-hidden::-webkit-scrollbar {
+    height: 0;
+    width: 0;
     display: none;
   }
 }

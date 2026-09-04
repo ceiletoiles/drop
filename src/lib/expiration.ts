@@ -23,7 +23,10 @@ export const getExpirationSummary = (expirationType: ExpirationType, expiresAt: 
   if (diff <= 0) return 'expired';
   if (diff < hourMs) return `${Math.max(1, Math.round(diff / minuteMs))} min`;
   if (diff < dayMs) return `${Math.max(1, Math.round(diff / hourMs))} hours`;
-  if (diff < 2 * dayMs) return 'tomorrow';
-  if (diff < 30 * dayMs) return `${Math.max(2, Math.round(diff / dayMs))} days`;
-  return '1 month';
+  const days = Math.max(1, Math.round(diff / dayMs));
+  if (days < 30) return `${days} days`;
+
+  const months = Math.floor(days / 30);
+  const remainingDays = days % 30;
+  return `${months} month${months === 1 ? '' : 's'}${remainingDays ? ` ${remainingDays} day${remainingDays === 1 ? '' : 's'}` : ''}`;
 };

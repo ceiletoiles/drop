@@ -155,6 +155,7 @@ Local env files:
    - `supabase/migrations/0005_v04_sharing.sql`
    - `supabase/migrations/0006_v05_spaces.sql`
    - `supabase/migrations/0007_v06_space_invite_tokens.sql`
+   - `supabase/migrations/0008_extend_item_expiration.sql`
 3. Ensure email/password auth is enabled.
 4. Copy the project URL and anon key into the frontend env file.
 5. Copy the service role key into the Worker env or Wrangler secrets.

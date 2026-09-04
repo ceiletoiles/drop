@@ -143,7 +143,7 @@ export const UploadDropzone = ({
                 className={`${actionControlClasses} relative flex rounded-2xl border border-slate-200 bg-white/90 px-4 py-2.5 text-center text-sm font-medium text-slate-950 shadow-sm outline-none transition hover:bg-white focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 disabled:pointer-events-none disabled:opacity-50`}
               >
                 <span className="flex items-center gap-2">
-                  <ExpirationIcon className="h-5 w-5 text-slate-500" />
+                  <ExpirationIcon className="h-3.5 w-3.5 text-slate-500" />
                   <span>Expiration</span>
                 </span>
                 <ChevronDownIcon className="absolute right-4 h-4 w-4 text-slate-400" />

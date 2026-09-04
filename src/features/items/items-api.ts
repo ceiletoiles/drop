@@ -26,6 +26,20 @@ export const updateExpirationItem = (token: string, itemId: string, payload: { e
     body: JSON.stringify(payload)
   });
 
+export const extendExpirationItem = (token: string, itemId: string, expirationType: Exclude<ExpirationType, 'CONSUME'>) =>
+  apiFetch<{ item: CreateTextResponse['item'] }>(`/api/items/${itemId}/expiration`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify({ expirationType })
+  });
+
+export const reduceExpirationItem = (token: string, itemId: string, expirationType: Exclude<ExpirationType, 'CONSUME'>) =>
+  apiFetch<{ item: CreateTextResponse['item'] }>(`/api/items/${itemId}/expiration/reduce`, {
+    method: 'POST',
+    token,
+    body: JSON.stringify({ expirationType })
+  });
+
 export const deleteItem = (token: string, itemId: string) =>
   apiFetch<{ ok: true }>(`/api/items/${itemId}`, {
     method: 'DELETE',

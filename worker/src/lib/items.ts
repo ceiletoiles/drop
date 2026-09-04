@@ -60,6 +60,7 @@ interface ShareSummaryRow {
 const selectItemColumns = 'id,user_id,space_id,type,title,created_at,updated_at,expiration_type,expires_at';
 const selectShareSummaryColumns = 'id,item_id,created_at,revoked_at,download_count';
 const selectShareColumns = 'id,item_id,token,token_hash,created_at,revoked_at,download_count';
+const recentExpirationRequests = new Map<string, number>();
 
 const createDb = (env: Env): SupabaseClient =>
   createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -488,9 +489,19 @@ export const updateExpiration = async (env: Env, userId: string, itemId: string,
   if (existingError || !existing) throw existingError ?? new Error('Not found.');
   if (!isActiveItem(existing as ItemRow) || (existing as ItemRow).space_id) throw new Error('Not found.');
 
+  const expirationUpdate = parsed === existing.expiration_type && parsed !== 'CONSUME' && existing.expires_at
+    ? (() => {
+        const expiresAt = new Date(existing.expires_at);
+        if (parsed === '24_HOURS') expiresAt.setHours(expiresAt.getHours() + 24);
+        if (parsed === '7_DAYS') expiresAt.setDate(expiresAt.getDate() + 7);
+        if (parsed === '1_MONTH') expiresAt.setMonth(expiresAt.getMonth() + 1);
+        return { expires_at: expiresAt.toISOString() };
+      })()
+    : { expiration_type: parsed };
+
   const { error: updateError } = await db
     .from('items')
-    .update({ expiration_type: parsed })
+    .update(expirationUpdate)
     .eq('id', itemId)
     .eq('user_id', userId);
 
@@ -519,6 +530,101 @@ export const updateExpiration = async (env: Env, userId: string, itemId: string,
       : { entityKind: 'note', sizeBytes: textRow?.content ? getTextSizeBytes(textRow.content) : null })
   });
 
+  return mapItem(refreshed as ItemRow, fileRow ?? undefined, textRow ?? undefined);
+};
+
+export const extendExpiration = async (env: Env, userId: string, itemId: string, expirationType: Exclude<ExpirationType, 'CONSUME'>) => {
+  const db = createDb(env);
+  const requestKey = `${userId}:${itemId}:${expirationType}`;
+  const lastRequestAt = recentExpirationRequests.get(requestKey) ?? 0;
+  if (Date.now() - lastRequestAt < 1500) throw new Error('Expiration was already extended.');
+  recentExpirationRequests.set(requestKey, Date.now());
+  const { data: existing, error: existingError } = await db.from('items').select(selectItemColumns).eq('id', itemId).eq('user_id', userId).single();
+  if (existingError || !existing) throw existingError ?? new Error('Not found.');
+  const item = existing as ItemRow;
+  if (!isActiveItem(item) || item.space_id || item.expiration_type === 'CONSUME' || !item.expires_at) throw new Error('Not found.');
+
+  const { data: extendedExpiresAt, error: extensionError } = await db.rpc('extend_item_expiration', {
+    p_item_id: itemId,
+    p_user_id: userId,
+    p_expiration_type: expirationType
+  });
+  let savedExpiresAt = extendedExpiresAt as string | null;
+  if (extensionError || !savedExpiresAt) {
+    const fallbackExpiresAt = new Date(item.expires_at);
+    if (expirationType === '24_HOURS') fallbackExpiresAt.setHours(fallbackExpiresAt.getHours() + 24);
+    if (expirationType === '7_DAYS') fallbackExpiresAt.setDate(fallbackExpiresAt.getDate() + 7);
+    if (expirationType === '1_MONTH') fallbackExpiresAt.setMonth(fallbackExpiresAt.getMonth() + 1);
+
+    const { data: fallbackRow, error: fallbackError } = await db
+      .from('items')
+      .update({ expires_at: fallbackExpiresAt.toISOString() })
+      .eq('id', itemId)
+      .eq('user_id', userId)
+      .eq('expires_at', item.expires_at)
+      .select('expires_at')
+      .single();
+    if (fallbackError || !fallbackRow) throw fallbackError ?? new Error('Expiration update was not saved.');
+    savedExpiresAt = (fallbackRow as Pick<ItemRow, 'expires_at'>).expires_at;
+  }
+
+  const { data: refreshed, error: refreshedError } = await db.from('items').select(selectItemColumns).eq('id', itemId).eq('user_id', userId).single();
+  if (refreshedError || !refreshed) throw refreshedError ?? new Error('Not found.');
+  if ((refreshed as ItemRow).expires_at !== savedExpiresAt) {
+    throw new Error('Expiration update was not saved.');
+  }
+  const { data: fileRow } = item.type === 'file'
+    ? await db.from('files').select('item_id,storage_key,original_name,mime_type,size').eq('item_id', itemId).single()
+    : { data: null };
+  const { data: textRow } = item.type === 'text'
+    ? await db.from('text_items').select('item_id,content').eq('item_id', itemId).single()
+    : { data: null };
+
+  return mapItem(refreshed as ItemRow, fileRow ?? undefined, textRow ?? undefined);
+};
+
+export const reduceExpiration = async (env: Env, userId: string, itemId: string, expirationType: Exclude<ExpirationType, 'CONSUME'>) => {
+  const db = createDb(env);
+  const { data: existing, error: existingError } = await db.from('items').select(selectItemColumns).eq('id', itemId).eq('user_id', userId).single();
+  if (existingError || !existing) throw existingError ?? new Error('Not found.');
+  const item = existing as ItemRow;
+  if (!isActiveItem(item) || item.space_id || item.expiration_type === 'CONSUME' || !item.expires_at) throw new Error('Not found.');
+
+  const currentExpiresAt = new Date(item.expires_at);
+  const minimumExpiresAt = new Date();
+  const reducedExpiresAt = new Date(currentExpiresAt);
+  const applyDuration = (date: Date) => {
+    if (expirationType === '24_HOURS') date.setHours(date.getHours() + 24);
+    if (expirationType === '7_DAYS') date.setDate(date.getDate() + 7);
+    if (expirationType === '1_MONTH') date.setMonth(date.getMonth() + 1);
+  };
+  applyDuration(minimumExpiresAt);
+  applyDuration(minimumExpiresAt);
+  if (currentExpiresAt <= minimumExpiresAt) throw new Error('Expiration cannot be reduced yet.');
+
+  const reverseDuration = (date: Date) => {
+    if (expirationType === '24_HOURS') date.setHours(date.getHours() - 24);
+    if (expirationType === '7_DAYS') date.setDate(date.getDate() - 7);
+    if (expirationType === '1_MONTH') date.setMonth(date.getMonth() - 1);
+  };
+  reverseDuration(reducedExpiresAt);
+
+  const { data: refreshed, error: updateError } = await db
+    .from('items')
+    .update({ expires_at: reducedExpiresAt.toISOString() })
+    .eq('id', itemId)
+    .eq('user_id', userId)
+    .eq('expires_at', item.expires_at)
+    .select(selectItemColumns)
+    .single();
+  if (updateError || !refreshed) throw updateError ?? new Error('Expiration update was not saved.');
+
+  const { data: fileRow } = item.type === 'file'
+    ? await db.from('files').select('item_id,storage_key,original_name,mime_type,size').eq('item_id', itemId).single()
+    : { data: null };
+  const { data: textRow } = item.type === 'text'
+    ? await db.from('text_items').select('item_id,content').eq('item_id', itemId).single()
+    : { data: null };
   return mapItem(refreshed as ItemRow, fileRow ?? undefined, textRow ?? undefined);
 };
 
@@ -771,36 +877,33 @@ export const downloadSharedItemFile = async (env: Env, shareToken: string) => {
     .eq('id', share.id);
   if (updateError) throw updateError;
 
-  if (item.expiration_type === 'CONSUME') {
-    if (fileRow) {
-      await queueFileDeletion(db, {
-        storageKey: fileRow.storage_key,
-        itemId: item.id,
-        userId: item.user_id,
-        reason: 'consume'
-      });
-    }
-
-    const { error: deleteError } = await db.from('items').delete().eq('id', item.id).eq('user_id', item.user_id);
-    if (deleteError) throw deleteError;
-
-    if (fileRow) {
-      const { data: queuedRows, error: queueError } = await db
-        .from('storage_deletion_queue')
-        .select('id,storage_key,attempts')
-        .eq('storage_key', fileRow.storage_key)
-        .limit(1);
-
-      if (queueError) throw queueError;
-      if (queuedRows?.[0]) {
-        await tryDeleteQueuedFile(env, db, queuedRows[0] as StorageDeletionRow);
-      }
-    }
-  }
-
   return {
     object,
-    fileRow
+    fileRow,
+    consume: item.expiration_type === 'CONSUME'
+      ? async () => {
+          await queueFileDeletion(db, {
+            storageKey: fileRow.storage_key,
+            itemId: item.id,
+            userId: item.user_id,
+            reason: 'consume'
+          });
+
+          const { error: deleteError } = await db.from('items').delete().eq('id', item.id).eq('user_id', item.user_id);
+          if (deleteError) throw deleteError;
+
+          const { data: queuedRows, error: queueError } = await db
+            .from('storage_deletion_queue')
+            .select('id,storage_key,attempts')
+            .eq('storage_key', fileRow.storage_key)
+            .limit(1);
+
+          if (queueError) throw queueError;
+          if (queuedRows?.[0]) {
+            await tryDeleteQueuedFile(env, db, queuedRows[0] as StorageDeletionRow);
+          }
+        }
+      : undefined
   };
 };
 

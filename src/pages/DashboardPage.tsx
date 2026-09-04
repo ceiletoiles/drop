@@ -20,7 +20,7 @@ import {
   UploadIcon
 } from '../components/ui/Icon';
 import { useAuth } from '../features/auth/auth-context';
-import { consumeItem, deleteItem, createTextItem, updateExpirationItem, updateTextItem, uploadFile } from '../features/items/items-api';
+import { consumeItem, deleteItem, createTextItem, extendExpirationItem, reduceExpirationItem, updateExpirationItem, updateTextItem, uploadFile } from '../features/items/items-api';
 import { RecentItemsList } from '../features/items/RecentItemsList';
 import { ExpirationModal } from '../features/items/ExpirationModal';
 import { TextEditorModal } from '../features/items/TextEditorModal';
@@ -139,7 +139,7 @@ export const DashboardPage = () => {
   const clipboardPasteHandlerRef = useRef<(event: ClipboardEvent) => void>(() => undefined);
   const uploadDefaultExpirationTouchedRef = useRef(false);
   const apiConfigured = !needsApiOverride();
-  const { items, loading, error, refresh } = useItems(session?.access_token ?? null, '', apiConfigured);
+  const { items, loading, error, refresh, updateItem } = useItems(session?.access_token ?? null, '', apiConfigured);
 
   const token = session?.access_token ?? '';
   const uploadActionsDisabled = !token || uploadDefaultExpirationLoading || uploadDefaultExpirationSaving;
@@ -814,6 +814,22 @@ export const DashboardPage = () => {
     showAction('Expiration updated.');
   };
 
+  const extendItemExpiration = async (itemId: string, expirationType: Exclude<ExpirationType, 'CONSUME'>) => {
+    if (!token) throw new Error('Missing session.');
+    const response = await extendExpirationItem(token, itemId, expirationType);
+    updateItem(response.item);
+    setExpirationItem((currentItem) => (currentItem?.id === response.item.id ? response.item : currentItem));
+    showAction('Expiration extended.');
+  };
+
+  const reduceItemExpiration = async (itemId: string, expirationType: Exclude<ExpirationType, 'CONSUME'>) => {
+    if (!token) throw new Error('Missing session.');
+    const response = await reduceExpirationItem(token, itemId, expirationType);
+    updateItem(response.item);
+    setExpirationItem((currentItem) => (currentItem?.id === response.item.id ? response.item : currentItem));
+    showAction('Expiration reduced.');
+  };
+
   if (!authLoading && !session) return <Navigate to="/login" replace />;
 
   return (
@@ -1313,6 +1329,8 @@ export const DashboardPage = () => {
         item={expirationItem}
         onClose={() => setExpirationItem(null)}
         onSave={saveExpiration}
+        onExtend={extendItemExpiration}
+        onReduce={reduceItemExpiration}
       />
       <ShareModal
         open={Boolean(shareItem)}
