@@ -290,27 +290,28 @@ export const RecentItemsList = ({
                       <p className="truncate text-sm font-semibold leading-5 text-slate-950" title={item.title}>
                         {item.title}
                       </p>
-                      <p className="scrollbar-hidden mt-1 flex min-w-0 flex-nowrap items-center gap-1.5 overflow-x-auto overflow-y-hidden whitespace-nowrap text-[10px] leading-none text-slate-500 sm:gap-x-2 sm:text-xs">
+                      <p className="scrollbar-hidden mt-1 flex min-w-0 flex-nowrap items-center gap-1 overflow-x-auto overflow-y-hidden whitespace-nowrap text-[10px] leading-none text-slate-500 sm:gap-x-1.5 sm:text-xs">
                         <span className="shrink-0 text-[10px] font-medium leading-none text-indigo-600 sm:text-[11px]">
                           {getFileTypeLabel({ itemType: item.type, filename: item.file?.originalName, mimeType: item.file?.mimeType })}
                         </span>
-                        <span className="hidden h-1 w-1 shrink-0 rounded-full bg-slate-300 sm:inline-block" aria-hidden="true" />
+                        <span className="inline-block h-0.5 w-0.5 shrink-0 rounded-full bg-slate-300" aria-hidden="true" />
                         {item.type === 'file' && item.file ? <span className="shrink-0">{formatFileSize(item.file.size)}</span> : null}
-                        {item.type === 'file' && item.file ? <span className="hidden h-1 w-1 shrink-0 rounded-full bg-slate-300 sm:inline-block" aria-hidden="true" /> : null}
+                        {item.type === 'file' && item.file ? <span className="inline-block h-0.5 w-0.5 shrink-0 rounded-full bg-slate-300" aria-hidden="true" /> : null}
                         <span className="shrink-0">{formatRelativeTime(item.createdAt)}</span>
                         {scope === 'space' && item.uploadedByName ? (
                           <>
-                            <span className="hidden h-1 w-1 shrink-0 rounded-full bg-slate-300 sm:inline-block" aria-hidden="true" />
+                            <span className="inline-block h-0.5 w-0.5 shrink-0 rounded-full bg-slate-300" aria-hidden="true" />
                             <span className="shrink-0 text-slate-500">{`Uploaded by ${item.uploadedByName}`}</span>
                           </>
                         ) : null}
+                        <span className="inline-block h-0.5 w-0.5 shrink-0 rounded-full bg-slate-300" aria-hidden="true" />
                         <span className="flex shrink-0 items-center gap-1 text-slate-500">
-                          <ExpirationIcon className="text-slate-500" />
+                          <ExpirationIcon className="!h-2.5 !w-2.5 text-slate-500" />
                           <span className="shrink-0">{getRecentItemExpirationLabel(item)}</span>
                         </span>
                         {scope === 'personal' && item.share ? (
                           <>
-                            <span className="hidden h-1 w-1 shrink-0 rounded-full bg-slate-300 sm:inline-block" aria-hidden="true"></span>
+                            <span className="inline-block h-0.5 w-0.5 shrink-0 rounded-full bg-slate-300" aria-hidden="true"></span>
                             <span className="shrink-0 font-medium text-emerald-600">
                               {`Shared${item.share.downloadCount > 0 ? ` · ${item.share.downloadCount} ${item.type === 'text' ? 'copies' : 'downloads'}` : ''}`}
                             </span>
