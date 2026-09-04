@@ -26,6 +26,7 @@ import {
   removeSpaceMember,
   revokeSpaceInvitation,
   updateSpaceItemExpiration,
+  adjustSpaceItemExpiration,
   updateSpaceText,
   uploadSpaceFile
 } from '../features/spaces/spaces-api';
@@ -834,6 +835,18 @@ export const SpacePage = () => {
         onSave={async (itemId, expirationType) => {
           if (!token || !spaceId) return;
           await updateSpaceItemExpiration(token, spaceId, itemId, expirationType as (typeof SPACE_EXPIRATION_TYPES)[number]);
+          await refresh();
+        }}
+        onExtend={async (itemId, expirationType) => {
+          if (!token || !spaceId) return;
+          const payload = await adjustSpaceItemExpiration(token, spaceId, itemId, expirationType as (typeof SPACE_EXPIRATION_TYPES)[number], 'extend');
+          setExpirationItem(payload.item);
+          await refresh();
+        }}
+        onReduce={async (itemId, expirationType) => {
+          if (!token || !spaceId) return;
+          const payload = await adjustSpaceItemExpiration(token, spaceId, itemId, expirationType as (typeof SPACE_EXPIRATION_TYPES)[number], 'reduce');
+          setExpirationItem(payload.item);
           await refresh();
         }}
         allowConsume={false}

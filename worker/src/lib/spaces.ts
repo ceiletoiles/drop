@@ -13,7 +13,7 @@ import type {
   SpaceExpirationType
 } from '../../../shared/types';
 import { spaceExpirationTypeSchema, createSpaceSchema, type CreateSpacePayload } from '../../../shared/schemas';
-import { DEFAULT_EXPIRATION_TYPE, MAX_UPLOAD_BYTES } from '../../../shared/constants';
+import { DEFAULT_EXPIRATION_TYPE } from '../../../shared/constants';
 import type { Env } from '../types';
 import { createText, uploadItem } from './items';
 import { deleteFile, getFile } from './storage';
@@ -82,11 +82,6 @@ const createDb = (env: Env): SupabaseClient =>
       persistSession: false
     }
   });
-
-const toNumber = (value: number | string | null | undefined) => {
-  if (value === null || value === undefined) return null;
-  return typeof value === 'number' ? value : Number(value);
-};
 
 const normalizeDisplayName = (value: string | null | undefined) => {
   const normalized = value?.trim();
@@ -490,7 +485,7 @@ export const deleteSpace = async (env: Env, userId: string, spaceId: string) => 
   const db = createDb(env);
   if (!(await isOwner(db, spaceId, userId))) throw new Error('Unauthorized.');
 
-  const { items, files } = await getSpaceItemRows(db, spaceId);
+  const { files } = await getSpaceItemRows(db, spaceId);
 
   for (const file of files) {
     await queueFileDeletion(db, {
@@ -817,6 +812,48 @@ export const updateSpaceItemExpiration = async (env: Env, userId: string, spaceI
     .single();
 
   if (refreshedError || !refreshed) throw refreshedError ?? new Error('Not found.');
+  return { item: mapSpaceItem(refreshed as ItemRow) };
+};
+
+export const adjustSpaceItemExpiration = async (
+  env: Env,
+  userId: string,
+  spaceId: string,
+  itemId: string,
+  expirationType: SpaceExpirationType,
+  direction: 'extend' | 'reduce'
+) => {
+  const db = createDb(env);
+  const member = await isMember(db, spaceId, userId);
+  if (!member) throw new Error('Space not found.');
+  const { data: item, error: itemError } = await db.from('items')
+    .select('id,user_id,space_id,type,title,created_at,updated_at,expiration_type,expires_at')
+    .eq('id', itemId).eq('space_id', spaceId).single();
+  if (itemError || !item) throw itemError ?? new Error('Not found.');
+  if ((item as ItemRow).user_id !== userId && member.role !== 'owner') throw new Error('Unauthorized.');
+
+  const currentExpiresAtValue = (item as ItemRow).expires_at;
+  if (!currentExpiresAtValue) throw new Error('Expiration cannot be adjusted.');
+  const currentExpiresAt = new Date(currentExpiresAtValue);
+  const updatedExpiresAt = new Date(currentExpiresAt);
+  const change = direction === 'extend' ? 1 : -1;
+  if (expirationType === '24_HOURS') updatedExpiresAt.setHours(updatedExpiresAt.getHours() + change * 24);
+  if (expirationType === '7_DAYS') updatedExpiresAt.setDate(updatedExpiresAt.getDate() + change * 7);
+  if (expirationType === '1_MONTH') updatedExpiresAt.setMonth(updatedExpiresAt.getMonth() + change);
+
+  if (direction === 'reduce') {
+    const minimumExpiresAt = new Date();
+    if (expirationType === '24_HOURS') minimumExpiresAt.setHours(minimumExpiresAt.getHours() + 48);
+    if (expirationType === '7_DAYS') minimumExpiresAt.setDate(minimumExpiresAt.getDate() + 14);
+    if (expirationType === '1_MONTH') minimumExpiresAt.setMonth(minimumExpiresAt.getMonth() + 2);
+    if (currentExpiresAt <= minimumExpiresAt) throw new Error('Expiration cannot be reduced yet.');
+  }
+
+  const { data: refreshed, error: updateError } = await db.from('items')
+    .update({ expires_at: updatedExpiresAt.toISOString() })
+    .eq('id', itemId).eq('space_id', spaceId).eq('expires_at', (item as ItemRow).expires_at)
+    .select('id,user_id,space_id,type,title,created_at,updated_at,expiration_type,expires_at').single();
+  if (updateError || !refreshed) throw updateError ?? new Error('Expiration update was not saved.');
   return { item: mapSpaceItem(refreshed as ItemRow) };
 };
 

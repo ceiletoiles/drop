@@ -48,8 +48,27 @@ export const ExpirationModal = ({ open, item, onClose, onSave, onExtend, onReduc
     }
   };
 
+  const reduce = async (type: Exclude<ExpirationType, 'CONSUME'>) => {
+    if (!item || !onReduce) return;
+    setLoading(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await onReduce(item.id, type);
+      setNotice('Expiration reduced.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Update failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const save = async () => {
     if (!item) return;
+    if (expirationType === item.expirationType) {
+      onClose();
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -87,7 +106,7 @@ export const ExpirationModal = ({ open, item, onClose, onSave, onExtend, onReduc
           allowConsume={allowConsume}
           onExtend={item && onExtend ? extend : undefined}
           expiresAt={item?.expiresAt}
-          onReduce={item && onReduce ? (type) => onReduce(item.id, type) : undefined}
+          onReduce={item && onReduce ? reduce : undefined}
         />
         {notice ? <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{notice}</p> : null}
         {error ? <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p> : null}

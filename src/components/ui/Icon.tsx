@@ -93,7 +93,7 @@ export const ClockIcon = ({ className, ...props }: IconProps) => (
 );
 
 export const ExpirationIcon = ({ className, ...props }: IconProps) => (
-  <svg className={clsx("h-5 w-5", className)} {...baseProps} {...props}>
+  <svg className={clsx("h-3.5 w-3.5", className)} {...baseProps} {...props}>
     <path d="M12 2a10 10 0 0 1 7.38 16.75" />
     <path d="M12 6v6l4 2" />
     <path d="M2.5 8.875a10 10 0 0 0-.5 3" />
@@ -181,6 +181,12 @@ export const CloudUploadIcon = ({ className, ...props }: IconProps) => (
 export const PlusIcon = ({ className, ...props }: IconProps) => (
   <svg className={clsx("h-4 w-4", className)} {...baseProps} {...props}>
     <path d="M12 5v14M5 12h14" />
+  </svg>
+);
+
+export const MinusIcon = ({ className, ...props }: IconProps) => (
+  <svg className={clsx("h-4 w-4", className)} {...baseProps} {...props}>
+    <path d="M5 12h14" />
   </svg>
 );
 

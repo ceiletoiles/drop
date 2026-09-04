@@ -40,6 +40,7 @@ import {
   downloadSpaceItemFile,
   updateSpaceText,
   updateSpaceItemExpiration,
+  adjustSpaceItemExpiration,
   validateSpaceInvite
 } from './lib/spaces';
 import { listActivities, recordActivity } from './lib/activity';
@@ -232,6 +233,16 @@ const handleSpaces = async (request: Request, env: Env, user: { id: string; emai
     const body = await readBody(request);
     const expirationType = spaceExpirationTypeSchema.parse(body.expirationType);
     const payload = await updateSpaceItemExpiration(env, user.id, spaceId, itemId, expirationType);
+    return corsResponse(request, payload);
+  }
+
+  if (method === 'POST' && url.pathname.startsWith(`/api/spaces/${spaceId}/items/`) && /\/expiration\/(extend|reduce)$/.test(url.pathname)) {
+    const itemId = segments[5];
+    if (!itemId) return errorResponse(400, 'Invalid item id.');
+    const direction = segments[7] as 'extend' | 'reduce';
+    const body = await readBody(request);
+    const expirationType = spaceExpirationTypeSchema.parse(body.expirationType);
+    const payload = await adjustSpaceItemExpiration(env, user.id, spaceId, itemId, expirationType, direction);
     return corsResponse(request, payload);
   }
 

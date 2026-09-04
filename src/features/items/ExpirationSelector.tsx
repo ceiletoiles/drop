@@ -1,6 +1,7 @@
 import { clsx } from 'clsx';
 import type { ExpirationType, ItemType } from '../../../shared/types';
 import { getExpirationOptionLabel } from '../../lib/expiration';
+import { MinusIcon, PlusIcon } from '../../components/ui/Icon';
 
 interface ExpirationSelectorProps {
   itemType: ItemType;
@@ -52,16 +53,6 @@ export const ExpirationSelector = ({ itemType, value, onChange, disabled = false
             </button>
             {active && option !== 'CONSUME' ? (
               <div className="flex shrink-0 items-center gap-1.5">
-                <button
-                  type="button"
-                  aria-label={`Add ${getExpirationOptionLabel(option, itemType)}`}
-                  title={`Add ${getExpirationOptionLabel(option, itemType)}`}
-                  disabled={disabled || !onExtend}
-                  onClick={() => void onExtend?.(option)}
-                  className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 text-lg leading-none text-slate-600 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 disabled:pointer-events-none disabled:opacity-50"
-                >
-                  +
-                </button>
                 {onReduce ? (
                   <button
                     type="button"
@@ -69,11 +60,21 @@ export const ExpirationSelector = ({ itemType, value, onChange, disabled = false
                     title={`Remove ${getExpirationOptionLabel(option, itemType)}`}
                     disabled={disabled || !canReduce}
                     onClick={() => void onReduce(option)}
-                    className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 text-lg leading-none text-slate-600 transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 disabled:pointer-events-none disabled:opacity-40"
+                    className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 text-slate-600 transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 disabled:pointer-events-none disabled:opacity-40"
                   >
-                    -
+                    <MinusIcon />
                   </button>
                 ) : null}
+                <button
+                  type="button"
+                  aria-label={`Add ${getExpirationOptionLabel(option, itemType)}`}
+                  title={`Add ${getExpirationOptionLabel(option, itemType)}`}
+                  disabled={disabled || !onExtend}
+                  onClick={() => void onExtend?.(option)}
+                  className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 text-slate-600 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  <PlusIcon />
+                </button>
               </div>
             ) : null}
           </div>

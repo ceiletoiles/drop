@@ -154,6 +154,13 @@ export const updateSpaceItemExpiration = (token: string, spaceId: string, itemId
     body: JSON.stringify({ expirationType })
   });
 
+export const adjustSpaceItemExpiration = (token: string, spaceId: string, itemId: string, expirationType: SpaceExpirationType, direction: 'extend' | 'reduce') =>
+  apiFetch<{ item: CreateSpaceItemResponse['item'] }>(`/api/spaces/${spaceId}/items/${itemId}/expiration/${direction}`, {
+    method: 'POST',
+    token,
+    body: JSON.stringify({ expirationType })
+  });
+
 export const deleteSpaceItem = (token: string, spaceId: string, itemId: string) =>
   apiFetch<{ ok: true }>(`/api/spaces/${spaceId}/items/${itemId}`, {
     method: 'DELETE',
