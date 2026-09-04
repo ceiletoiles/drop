@@ -305,7 +305,7 @@ export const RecentItemsList = ({
                           </>
                         ) : null}
                         <span className="flex shrink-0 items-center gap-1 text-slate-500">
-                          <ExpirationIcon className="!h-4 !w-4 text-slate-500" />
+                          <ExpirationIcon className="text-slate-500" />
                           <span className="shrink-0">{getRecentItemExpirationLabel(item)}</span>
                         </span>
                         {scope === 'personal' && item.share ? (

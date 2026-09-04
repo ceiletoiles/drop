@@ -129,7 +129,7 @@ export const UploadDropzone = ({
             <Button type="button" variant="secondary" onClick={onBrowse} disabled={disabled || busy} className={`${actionControlClasses} px-4 py-2.5`}>
               {busy ? <Spinner /> : <><PlusIcon /> Upload</>}
             </Button>
-            <span className="mt-1.5 block text-xs text-slate-500">Max 25 MB</span>
+            <span className="mt-1.5 block text-xs text-slate-500">Max 50 MB</span>
           </div>
 
           {defaultExpirationType && onDefaultExpirationTypeChange ? (

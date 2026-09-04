@@ -263,6 +263,6 @@ npm run worker:deploy
 - Text items are stored directly in PostgreSQL.
 - File contents are stored in R2, not Postgres.
 - Ownership is enforced server-side.
-- Upload size is capped at 25 MB in the shared schema and Worker validation.
+- Upload size is capped at 50 MB in the shared schema and Worker validation.
 - Editing a text item does not reset its expiration in V0.3.
 - V1 adds native Android support while keeping the web app as the primary shared codebase.
