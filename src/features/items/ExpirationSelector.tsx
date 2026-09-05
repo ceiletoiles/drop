@@ -17,9 +17,8 @@ interface ExpirationSelectorProps {
 const options: ExpirationType[] = ['CONSUME', '24_HOURS', '7_DAYS', '1_MONTH'];
 
 export const ExpirationSelector = ({ itemType, value, onChange, disabled = false, allowConsume = true, onExtend, expiresAt, onReduce }: ExpirationSelectorProps) => (
-  <div className="rounded-2xl border border-slate-200/80 bg-white/70 p-3 text-left shadow-sm">
+  <div className="rounded-2xl bg-white/70 p-3 text-left shadow-sm">
     <div className="pb-3">
-      <p className="text-sm font-medium text-slate-900">Expiration</p>
       <p className="text-xs text-slate-500">Choose when this item disappears.</p>
     </div>
     <div className="space-y-1.5">

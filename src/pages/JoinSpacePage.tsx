@@ -98,7 +98,7 @@ export const JoinSpacePage = () => {
                 {invite.space.memberCount} members and {invite.space.itemCount} items are already here.
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
-                <Button type="button" onClick={() => void handleJoin()} disabled={joinLoading}>
+                <Button type="button" variant="secondary" onClick={() => void handleJoin()} disabled={joinLoading}>
                   {joinLoading ? <Spinner /> : 'Join Space'}
                 </Button>
                 <Link to="/spaces">

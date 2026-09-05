@@ -4,7 +4,7 @@ import { Spinner } from '../components/ui/Spinner';
 import { useActivity } from '../features/activity/useActivity';
 import type { ActivityItem } from '../features/activity/types';
 import { useAuth } from '../features/auth/auth-context';
-import { formatFileSize, formatRelativeTime, getInitials } from '../lib/format';
+import { formatFileSize, formatRelativeTime, formatTimeUntil, getInitials } from '../lib/format';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useMemo, useRef, useState, type SVGProps } from 'react';
 import { useItems } from '../features/items/useItems';
@@ -394,7 +394,7 @@ export const AccountPage = () => {
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium text-slate-950">{space.name}</p>
                           <p className="text-xs text-slate-500">Owned by {space.ownerName}</p>
-                          <p className="mt-1 text-xs text-slate-500">Expires {formatRelativeTime(invitation.expiresAt)}</p>
+                          <p className="mt-1 text-xs text-slate-500">Expires {formatTimeUntil(invitation.expiresAt)}</p>
                         </div>
                         {inviteHref ? (
                           <a

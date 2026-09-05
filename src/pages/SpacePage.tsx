@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { Spinner } from '../components/ui/Spinner';
+import { ActionToast } from '../components/ui/ActionToast';
 import { ArrowBackIcon, LogOutIcon, PlusIcon, TrashIcon, UploadIcon, UserPlusIcon, UsersIcon } from '../components/ui/Icon';
 import { useAuth } from '../features/auth/auth-context';
 import { NoteViewModal } from '../features/items/NoteViewModal';
@@ -78,6 +79,7 @@ export const SpacePage = () => {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const actionMessageTimeoutRef = useRef<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
@@ -135,8 +137,16 @@ export const SpacePage = () => {
 
   const showAction = (message: string) => {
     setActionMessage(message);
-    window.setTimeout(() => setActionMessage(null), 2500);
+    if (actionMessageTimeoutRef.current !== null) window.clearTimeout(actionMessageTimeoutRef.current);
+    actionMessageTimeoutRef.current = window.setTimeout(() => {
+      setActionMessage(null);
+      actionMessageTimeoutRef.current = null;
+    }, 2500);
   };
+
+  useEffect(() => () => {
+    if (actionMessageTimeoutRef.current !== null) window.clearTimeout(actionMessageTimeoutRef.current);
+  }, []);
 
   const refresh = async () => {
     if (!token || !spaceId) return;
@@ -543,11 +553,11 @@ export const SpacePage = () => {
   ) : null;
 
   const membersSection = (
-    <section className="rounded-[2rem] border border-slate-200/80 bg-white/80 p-5 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Members</p>
-      <div className="mt-3 space-y-3">
+    <section className="rounded-[2rem] bg-white/80 p-0 shadow-[0_20px_60px_rgba(15,23,42,0.06)] md:p-5">
+      <p className="mb-3 hidden text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400 md:block">Members</p>
+      <div className="divide-y divide-slate-200">
         {members.map((member) => (
-          <div key={member.userId} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3">
+          <div key={member.userId} className="flex items-center justify-between gap-3 bg-white px-3 py-3">
             <div className="flex min-w-0 items-center gap-3">
               <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-indigo-500 to-sky-500 text-xs font-semibold text-white">
                 {member.profilePicture ? <img src={member.profilePicture} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" /> : getInitials(member.displayName)}
@@ -691,7 +701,6 @@ export const SpacePage = () => {
         </header>
 
         {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div> : null}
-        {actionMessage ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{actionMessage}</div> : null}
 
         {loading ? (
           <div className="grid w-full place-items-center rounded-[2rem] border border-slate-200/80 bg-white/80 py-16 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
@@ -722,7 +731,6 @@ export const SpacePage = () => {
                 activeFilter="search"
                 scope="space"
                 searchInputRef={searchInputRef}
-                message={null}
                 onQueryChange={setQuery}
                 onSortChange={setSortOrder}
                 onFocusSearch={() => undefined}
@@ -828,6 +836,8 @@ export const SpacePage = () => {
         </div>
       </Modal>
 
+      {actionMessage ? <ActionToast message={actionMessage} onDismiss={() => setActionMessage(null)} /> : null}
+
       <ExpirationModal
         open={Boolean(expirationItem)}
         item={expirationItem}
@@ -836,18 +846,21 @@ export const SpacePage = () => {
           if (!token || !spaceId) return;
           await updateSpaceItemExpiration(token, spaceId, itemId, expirationType as (typeof SPACE_EXPIRATION_TYPES)[number]);
           await refresh();
+          showAction('Expiration updated.');
         }}
         onExtend={async (itemId, expirationType) => {
           if (!token || !spaceId) return;
           const payload = await adjustSpaceItemExpiration(token, spaceId, itemId, expirationType as (typeof SPACE_EXPIRATION_TYPES)[number], 'extend');
           setExpirationItem(payload.item);
           await refresh();
+          showAction('Expiration extended.');
         }}
         onReduce={async (itemId, expirationType) => {
           if (!token || !spaceId) return;
           const payload = await adjustSpaceItemExpiration(token, spaceId, itemId, expirationType as (typeof SPACE_EXPIRATION_TYPES)[number], 'reduce');
           setExpirationItem(payload.item);
           await refresh();
+          showAction('Expiration reduced.');
         }}
         allowConsume={false}
       />
@@ -856,6 +869,7 @@ export const SpacePage = () => {
         title={mobilePanel === 'invite' ? 'Invite' : 'Members'}
         open={mobilePanelOpen}
         onClose={() => setMobilePanelOpen(false)}
+        bodyClassName={mobilePanel === 'members' ? 'pt-0' : undefined}
       >
         {mobilePanel === 'invite' && isOwner ? inviteSection : membersSection}
       </Modal>

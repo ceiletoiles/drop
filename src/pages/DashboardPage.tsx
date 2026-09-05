@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { Spinner } from '../components/ui/Spinner';
+import { ActionToast } from '../components/ui/ActionToast';
 import {
   ChevronDownIcon,
   FileIcon,
@@ -137,6 +138,7 @@ export const DashboardPage = () => {
   const shareRequestRef = useRef<string | null>(null);
   const previewRequestRef = useRef(0);
   const clipboardPasteHandlerRef = useRef<(event: ClipboardEvent) => void>(() => undefined);
+  const actionMessageTimeoutRef = useRef<number | null>(null);
   const uploadDefaultExpirationTouchedRef = useRef(false);
   const apiConfigured = !needsApiOverride();
   const { items, loading, error, refresh, updateItem } = useItems(session?.access_token ?? null, '', apiConfigured);
@@ -165,7 +167,15 @@ export const DashboardPage = () => {
 
   const showAction = useCallback((message: string) => {
     setActionMessage(message);
-    window.setTimeout(() => setActionMessage(null), 2500);
+    if (actionMessageTimeoutRef.current !== null) window.clearTimeout(actionMessageTimeoutRef.current);
+    actionMessageTimeoutRef.current = window.setTimeout(() => {
+      setActionMessage(null);
+      actionMessageTimeoutRef.current = null;
+    }, 2500);
+  }, []);
+
+  useEffect(() => () => {
+    if (actionMessageTimeoutRef.current !== null) window.clearTimeout(actionMessageTimeoutRef.current);
   }, []);
 
   useEffect(() => {
@@ -1038,7 +1048,6 @@ export const DashboardPage = () => {
                 query={query}
                 sortOrder={sortOrder}
                 activeFilter={activeFilter}
-                message={actionMessage}
                 onQueryChange={setQuery}
                 onSortChange={setSortOrder}
                 onFocusSearch={() => searchInputRef.current?.focus()}
@@ -1056,6 +1065,8 @@ export const DashboardPage = () => {
           </section>
         </div>
       </div>
+
+      {actionMessage ? <ActionToast message={actionMessage} onDismiss={() => setActionMessage(null)} /> : null}
 
       <div
         className={clsx(

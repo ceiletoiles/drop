@@ -40,6 +40,7 @@ export const ShareModal = ({
       open={open}
       title="Share this Drop"
       onClose={onClose}
+      footerClassName="border-t-0"
       footer={
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-slate-500">
@@ -50,7 +51,7 @@ export const ShareModal = ({
     >
       {item ? (
         <div className="space-y-4">
-          <div className="flex items-start gap-3 rounded-[1.5rem] border border-slate-100 bg-slate-50 px-4 py-4">
+          <div className="flex items-center gap-3 rounded-[1.5rem] border border-slate-100 bg-slate-50 px-4 py-4">
             <FileTypeIcon
               itemType={item.type}
               filename={item.file?.originalName}
@@ -85,31 +86,33 @@ export const ShareModal = ({
               <label className="block text-sm font-medium text-slate-700" htmlFor="share-link">
                 Temporary link
               </label>
-              <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="flex flex-col gap-3">
                 <input
                   id="share-link"
                   className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/25"
                   value={shareUrl ?? ''}
                   readOnly
                 />
-                <Button type="button" variant="secondary" onClick={onCopyLink} disabled={!hasShareUrl}>
-                  <CopyIcon />
-                  Copy link
-                </Button>
               </div>
               <div className="flex items-center gap-2 text-xs text-slate-500">
                 <ShareIcon className="h-4 w-4" />
                 <span>The public page works without a Drop account.</span>
               </div>
-              <Button type="button" variant="danger" onClick={onRevoke} className="w-full justify-center sm:w-auto">
-                <TrashIcon />
-                Revoke share
-              </Button>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button type="button" variant="secondary" onClick={onCopyLink} disabled={!hasShareUrl} className="w-full sm:flex-1">
+                  <CopyIcon />
+                  Copy link
+                </Button>
+                <Button type="button" variant="danger" onClick={onRevoke} className="w-full sm:flex-1">
+                  <TrashIcon />
+                  Revoke share
+                </Button>
+              </div>
             </div>
           ) : (
-            <div className="space-y-3 rounded-[1.5rem] border border-slate-100 bg-white px-4 py-4 text-sm text-slate-500">
+            <div className="space-y-3 rounded-[1.5rem] bg-white px-4 py-4 text-sm text-slate-500">
               <p>No active share link yet.</p>
-              <Button type="button" variant="primary" onClick={onCreateLink} className="w-full justify-center sm:w-auto">
+              <Button type="button" variant="secondary" onClick={onCreateLink} className="w-full justify-center sm:w-auto">
                 Create link
               </Button>
             </div>

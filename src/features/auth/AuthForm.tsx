@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -86,7 +87,7 @@ export const AuthForm = ({ mode }: AuthFormProps) => {
         {successMessage ? (
           <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{successMessage}</p>
         ) : null}
-        <Button type="submit" className="w-full" disabled={loading || !configured}>
+        <Button type="submit" variant="secondary" className="w-full" disabled={loading || !configured}>
           {loading ? <Spinner /> : mode === 'login' ? 'Log in' : 'Create account'}
         </Button>
       </form>
@@ -104,6 +105,13 @@ export const AuthForm = ({ mode }: AuthFormProps) => {
       >
         Continue with Google
       </Button>
+      <p className="mt-4 text-center text-sm text-slate-500">
+        {mode === 'login' ? (
+          <>Need an account? <Link to="/signup" className="font-medium text-slate-950 underline">Sign up</Link></>
+        ) : (
+          <>Already have an account? <Link to="/login" className="font-medium text-slate-950 underline">Log in</Link></>
+        )}
+      </p>
     </Card>
   );
 };

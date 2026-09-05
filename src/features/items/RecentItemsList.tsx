@@ -21,7 +21,6 @@ interface RecentItemsListProps {
   sortOrder: 'newest' | 'oldest';
   activeFilter: 'home' | 'all' | 'text' | 'files' | 'images' | 'search';
   searchInputRef: RefObject<HTMLInputElement | null>;
-  message?: string | null;
   scope?: 'personal' | 'space';
   onQueryChange: (value: string) => void;
   onSortChange: (value: 'newest' | 'oldest') => void;
@@ -42,7 +41,6 @@ export const RecentItemsList = ({
   sortOrder,
   activeFilter,
   searchInputRef,
-  message,
   scope = 'personal',
   onQueryChange,
   onSortChange,
@@ -162,12 +160,11 @@ export const RecentItemsList = ({
     </div>
   );
 
-  const shareLabel = infoItem
-    ? scope === 'personal' && infoItem.share
-      ? `Shared${infoItem.share.downloadCount > 0 ? ` · ${infoItem.share.downloadCount} ${infoItem.type === 'text' ? 'copies' : 'downloads'}` : ''}`
-      : 'Not shared'
-    : '';
-  const infoSizeLabel = infoItem?.type === 'file' && infoItem.file ? formatFileSize(infoItem.file.size) : null;
+  const infoSizeLabel = infoItem?.type === 'file' && infoItem.file
+    ? formatFileSize(infoItem.file.size)
+    : infoItem?.type === 'text' && infoItem.text
+      ? formatFileSize(new TextEncoder().encode(infoItem.text.content).length)
+      : null;
   const infoCreatedDateLabel = infoItem?.createdAt ? new Date(infoItem.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : null;
   const infoExpirationLabel = infoItem ? getExpirationSummary(infoItem.expirationType, infoItem.expiresAt, infoItem.type) : '';
 
@@ -228,8 +225,6 @@ export const RecentItemsList = ({
           </div>
         ) : null}
       </div>
-
-      {message ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</div> : null}
 
       {loading ? (
         <div className="space-y-4 py-5">
@@ -520,36 +515,15 @@ export const RecentItemsList = ({
 
       <Modal
         open={Boolean(infoItem)}
-        title="Item info"
+        title={infoItem?.file?.originalName ?? infoItem?.title ?? 'Item info'}
         onClose={() => setInfoItem(null)}
       >
         {infoItem ? (
           <div className="space-y-4">
-            <div className="rounded-[1.5rem] border border-slate-200 bg-white/90 px-3 py-3 shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
-              <div className="flex items-center gap-2.5">
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[1rem] bg-[linear-gradient(180deg,_rgba(168,85,247,0.10),_rgba(147,197,253,0.12))] text-violet-500 ring-1 ring-violet-100">
-                  <FileTypeIcon
-                    itemType={infoItem.type}
-                    filename={infoItem.file?.originalName}
-                    mimeType={infoItem.file?.mimeType}
-                    className="h-5 w-5"
-                  />
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-[0.92rem] font-semibold tracking-tight text-slate-950 sm:text-[1rem]">{infoItem.title}</p>
-                  <p className="mt-0.5 text-[0.8rem] text-slate-500">
-                    {getFileTypeLabel({ itemType: infoItem.type, filename: infoItem.file?.originalName, mimeType: infoItem.file?.mimeType })}
-                  </p>
-                </div>
-              </div>
-            </div>
-
             <div>
-              <p className="mb-2.5 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-slate-500">About this item</p>
-
               <div className="space-y-2.5">
-                <div className="flex items-stretch gap-2.5 rounded-[1.35rem] border border-slate-200 bg-white px-3 py-3 shadow-[0_6px_20px_rgba(15,23,42,0.03)]">
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[0.95rem] bg-violet-50 text-violet-500">
+                <div className="flex items-stretch gap-2.5 px-1 py-3">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center text-slate-500">
                     <FileIcon className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -565,14 +539,14 @@ export const RecentItemsList = ({
                   </div>
                   {infoSizeLabel ? (
                     <div className="shrink-0 text-right">
-                      <p className="text-[0.95rem] font-semibold tracking-tight text-slate-950">{infoSizeLabel}</p>
+                      <p className="text-[0.86rem] font-semibold text-slate-950">{infoSizeLabel}</p>
                       <p className="mt-0.5 text-[0.68rem] text-slate-500">Size</p>
                     </div>
                   ) : null}
                 </div>
 
-                <div className="flex items-stretch gap-2.5 rounded-[1.35rem] border border-slate-200 bg-white px-3 py-3 shadow-[0_6px_20px_rgba(15,23,42,0.03)]">
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[0.95rem] bg-sky-50 text-sky-500">
+                <div className="flex items-stretch gap-2.5 px-1 py-3">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center text-slate-500">
                     <ClockIcon className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -581,8 +555,8 @@ export const RecentItemsList = ({
                   </div>
                 </div>
 
-                <div className="flex items-stretch gap-2.5 rounded-[1.35rem] border border-slate-200 bg-white px-3 py-3 shadow-[0_6px_20px_rgba(15,23,42,0.03)]">
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[0.95rem] bg-emerald-50 text-emerald-500">
+                <div className="flex items-stretch gap-2.5 px-1 py-3">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center text-slate-500">
                     <CalendarIcon className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -591,8 +565,8 @@ export const RecentItemsList = ({
                   </div>
                 </div>
 
-                <div className="flex items-stretch gap-2.5 rounded-[1.35rem] border border-slate-200 bg-white px-3 py-3 shadow-[0_6px_20px_rgba(15,23,42,0.03)]">
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[0.95rem] bg-amber-50 text-amber-500">
+                <div className="flex items-stretch gap-2.5 px-1 py-3">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center text-slate-500">
                     <LockIcon className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -604,17 +578,6 @@ export const RecentItemsList = ({
                           ? 'Anyone with the link can open this item.'
                           : 'Only you can access this item.'}
                     </p>
-                  </div>
-                  <div className="shrink-0">
-                    <div
-                      className={clsx(
-                        'inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-[0.72rem] font-medium',
-                        scope === 'space' || infoItem.share ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-700'
-                      )}
-                    >
-                      <LockIcon className="h-3 w-3" />
-                      <span>{scope === 'space' ? 'Members only' : shareLabel}</span>
-                    </div>
                   </div>
                 </div>
               </div>

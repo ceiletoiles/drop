@@ -290,7 +290,7 @@ export const SpacesPage = () => {
                   <div className="p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-3">
-                        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[linear-gradient(135deg,_rgba(129,140,248,0.26),_rgba(168,85,247,0.18))] text-indigo-600">
+                        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-slate-500">
                           <GridIcon className="h-6 w-6" />
                         </div>
                         <div className="min-w-0">
@@ -399,11 +399,9 @@ export const SpacesPage = () => {
                           mimeType: recentItem.mimeType
                         });
 
-                        const toneClass = kind === 'image' ? 'bg-emerald-100 text-emerald-500' : kind === 'pdf' ? 'bg-rose-100 text-rose-500' : 'bg-sky-100 text-sky-600';
-
                         return (
                           <div key={recentItem.id} className="flex min-w-0 items-center gap-2">
-                            <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${toneClass}`}>
+                            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-slate-500">
                               {kind === 'image' ? <ImageIcon className="h-5 w-5" /> : <FileIcon className="h-5 w-5" />}
                             </span>
                             <span className="min-w-0">
@@ -416,13 +414,13 @@ export const SpacesPage = () => {
                         );
                       })}
 
-                      <span className="justify-self-end rounded-full bg-[linear-gradient(135deg,_rgba(129,140,248,0.15),_rgba(168,85,247,0.12))] px-3 py-1 text-xs font-medium text-indigo-600">
+                      <span className="justify-self-end px-3 py-1 text-xs font-medium text-slate-700">
                         {space.itemCount} items
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between px-4 py-3 text-indigo-600">
+                  <div className="flex items-center justify-between px-4 py-3 text-slate-950">
                     <span className="text-base font-medium">Open Space</span>
                     <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <path d="M5 12h14" />
@@ -456,7 +454,7 @@ export const SpacesPage = () => {
             >
               Cancel
             </Button>
-            <Button type="button" onClick={() => void handleCreate()} disabled={createLoading}>
+            <Button type="button" variant="secondary" onClick={() => void handleCreate()} disabled={createLoading}>
               {createLoading ? <Spinner /> : 'Create'}
             </Button>
           </div>
@@ -480,7 +478,7 @@ export const SpacesPage = () => {
             <Button type="button" variant="secondary" onClick={closeRenameSpace} disabled={renameLoading}>
               Cancel
             </Button>
-            <Button type="button" onClick={() => void handleRenameSpace()} disabled={renameLoading}>
+            <Button type="button" variant="secondary" onClick={() => void handleRenameSpace()} disabled={renameLoading}>
               {renameLoading ? <Spinner /> : 'Save'}
             </Button>
           </div>

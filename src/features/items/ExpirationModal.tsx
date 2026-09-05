@@ -20,14 +20,12 @@ export const ExpirationModal = ({ open, item, onClose, onSave, onExtend, onReduc
   const [expirationType, setExpirationType] = useState<ExpirationType>('24_HOURS');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const extensionInFlightRef = useRef(false);
 
   useEffect(() => {
     if (open) {
       setExpirationType(item?.expirationType ?? '24_HOURS');
       setError(null);
-      setNotice(null);
     }
   }, [item?.expirationType, open]);
 
@@ -36,10 +34,8 @@ export const ExpirationModal = ({ open, item, onClose, onSave, onExtend, onReduc
     extensionInFlightRef.current = true;
     setLoading(true);
     setError(null);
-    setNotice(null);
     try {
       await onExtend(item.id, type);
-      setNotice('Expiration extended.');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Update failed.');
     } finally {
@@ -52,10 +48,8 @@ export const ExpirationModal = ({ open, item, onClose, onSave, onExtend, onReduc
     if (!item || !onReduce) return;
     setLoading(true);
     setError(null);
-    setNotice(null);
     try {
       await onReduce(item.id, type);
-      setNotice('Expiration reduced.');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Update failed.');
     } finally {
@@ -91,7 +85,7 @@ export const ExpirationModal = ({ open, item, onClose, onSave, onExtend, onReduc
           <Button type="button" variant="secondary" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button type="button" onClick={() => void save()} disabled={loading || !item}>
+          <Button type="button" variant="secondary" onClick={() => void save()} disabled={loading || !item}>
             {loading ? <Spinner /> : 'Save'}
           </Button>
         </div>
@@ -108,7 +102,6 @@ export const ExpirationModal = ({ open, item, onClose, onSave, onExtend, onReduc
           expiresAt={item?.expiresAt}
           onReduce={item && onReduce ? reduce : undefined}
         />
-        {notice ? <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{notice}</p> : null}
         {error ? <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p> : null}
       </div>
     </Modal>
