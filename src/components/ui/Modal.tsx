@@ -66,7 +66,7 @@ export const Modal = ({ title, open, onClose, footer, footerClassName, bodyClass
             Close
           </Button>
         </div>
-        <div className={clsx('flex-1 overflow-y-auto p-5', bodyClassName)}>{children}</div>
+        <div className={clsx('flex-1 overflow-y-auto', bodyClassName ?? 'p-5')}>{children}</div>
         {footer ? <div className={clsx('border-t border-slate-100 px-5 py-4', footerClassName)}>{footer}</div> : null}
       </div>
     </div>,

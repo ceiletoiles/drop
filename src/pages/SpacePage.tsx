@@ -869,7 +869,7 @@ export const SpacePage = () => {
         title={mobilePanel === 'invite' ? 'Invite' : 'Members'}
         open={mobilePanelOpen}
         onClose={() => setMobilePanelOpen(false)}
-        bodyClassName={mobilePanel === 'members' ? 'pt-0' : undefined}
+        bodyClassName={mobilePanel === 'members' ? 'p-0' : undefined}
       >
         {mobilePanel === 'invite' && isOwner ? inviteSection : membersSection}
       </Modal>

@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { ActionToast } from '../components/ui/ActionToast';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { FileTypeIcon } from '../components/ui/FileTypeIcon';
@@ -17,10 +18,24 @@ export const SharePage = () => {
   const { token } = useParams<{ token: string }>();
   const [share, setShare] = useState<ShareResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [consumed, setConsumed] = useState(false);
+  const actionMessageTimeoutRef = useRef<number | null>(null);
+
+  const showAction = (nextMessage: string) => {
+    setActionMessage(nextMessage);
+    if (actionMessageTimeoutRef.current !== null) window.clearTimeout(actionMessageTimeoutRef.current);
+    actionMessageTimeoutRef.current = window.setTimeout(() => {
+      setActionMessage(null);
+      actionMessageTimeoutRef.current = null;
+    }, 4200);
+  };
+
+  useEffect(() => () => {
+    if (actionMessageTimeoutRef.current !== null) window.clearTimeout(actionMessageTimeoutRef.current);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -70,7 +85,7 @@ export const SharePage = () => {
       const blob = await response.blob();
       const result = await downloadBlob(blob, item.file?.originalName ?? item.title);
       setError(null);
-      setMessage(
+      showAction(
         item.expirationType === 'CONSUME'
           ? result.savedOnDevice
             ? 'Saved to device storage. This Drop has been removed.'
@@ -108,7 +123,7 @@ export const SharePage = () => {
           : current
       );
       setError(null);
-      setMessage(item.expirationType === 'CONSUME' ? 'Copied. This Drop has been removed.' : 'Copied.');
+      showAction(item.expirationType === 'CONSUME' ? 'Copied. This Drop has been removed.' : 'Copied.');
       if (item.expirationType === 'CONSUME') {
         setConsumed(true);
       }
@@ -147,15 +162,13 @@ export const SharePage = () => {
               </div>
             ) : item ? (
               <div className="space-y-5">
-                <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:items-start sm:text-left">
-                  <div className="grid h-16 w-16 shrink-0 place-items-center rounded-[1.5rem] bg-slate-100 text-slate-600">
-                    <FileTypeIcon
-                      itemType={item.type}
-                      filename={item.file?.originalName}
-                      mimeType={item.file?.mimeType}
-                      className="h-8 w-8"
-                    />
-                  </div>
+                <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:items-center sm:text-left">
+                  <FileTypeIcon
+                    itemType={item.type}
+                    filename={item.file?.originalName}
+                    mimeType={item.file?.mimeType}
+                    className="h-8 w-8 shrink-0 text-slate-600"
+                  />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-2xl font-semibold tracking-tight text-slate-950">{item.title}</p>
                     <p className="mt-2 text-sm text-slate-500">
@@ -169,15 +182,19 @@ export const SharePage = () => {
                   </div>
                 </div>
 
-                {message ? <div className="rounded-[1.5rem] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</div> : null}
-
                 {item.type === 'text' && item.text?.content ? (
                   <div className="space-y-3">
-                    <div className="rounded-[1.75rem] border border-slate-200 bg-slate-950 px-4 py-4 text-[15px] leading-7 text-slate-50 shadow-inner sm:px-5">
+                    <div className="rounded-[1.75rem] border border-slate-200 bg-slate-50 px-4 py-4 text-[15px] leading-7 text-slate-700 sm:px-5">
                       <pre className="whitespace-pre-wrap break-words font-sans">{item.text.content}</pre>
                     </div>
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                      <Button type="button" className="w-full sm:w-auto" onClick={handleCopy} disabled={busy || consumed}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="w-full border border-slate-300 bg-transparent text-slate-700 shadow-none hover:bg-slate-50 hover:text-slate-950 sm:w-auto"
+                        onClick={handleCopy}
+                        disabled={busy || consumed}
+                      >
                         <CopyIcon />
                         Copy
                       </Button>
@@ -199,7 +216,13 @@ export const SharePage = () => {
                     ) : null}
 
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-                      <Button type="button" className="w-full sm:w-auto" onClick={handleDownload} disabled={busy || consumed}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="w-full border border-slate-300 bg-transparent text-slate-700 shadow-none hover:bg-slate-50 hover:text-slate-950 sm:w-auto"
+                        onClick={handleDownload}
+                        disabled={busy || consumed}
+                      >
                         <DownloadIcon />
                         Download
                       </Button>
@@ -211,6 +234,7 @@ export const SharePage = () => {
           </Card>
         </div>
       </div>
+      {actionMessage ? <ActionToast message={actionMessage} onDismiss={() => setActionMessage(null)} /> : null}
     </main>
   );
 };

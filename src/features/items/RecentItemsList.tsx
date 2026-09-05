@@ -14,6 +14,52 @@ import { getExpirationSummary } from '../../lib/expiration';
 const getRecentItemExpirationLabel = (item: Item) =>
   item.expirationType === 'CONSUME' ? 'Instant' : getExpirationSummary(item.expirationType, item.expiresAt, item.type);
 
+const MetadataRow = ({ children }: { children: React.ReactNode }) => {
+  const rowRef = useRef<HTMLParagraphElement | null>(null);
+  const [revealProgress, setRevealProgress] = useState(0);
+  const [hasOverflow, setHasOverflow] = useState(false);
+
+  const updateScrollState = () => {
+    const row = rowRef.current;
+    if (!row) return;
+
+    const maxScrollLeft = row.scrollWidth - row.clientWidth;
+    setHasOverflow(maxScrollLeft > 1);
+    setRevealProgress(maxScrollLeft > 1 ? Math.min(row.scrollLeft / maxScrollLeft, 1) : 1);
+  };
+
+  useEffect(() => {
+    updateScrollState();
+    const row = rowRef.current;
+    if (!row) return undefined;
+
+    const resizeObserver = new ResizeObserver(updateScrollState);
+    resizeObserver.observe(row);
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  return (
+    <div className="relative flex min-w-0 flex-1 items-center">
+      <p
+        ref={rowRef}
+        onScroll={updateScrollState}
+        className="scrollbar-hidden mt-1 flex min-w-0 flex-1 flex-nowrap items-center gap-1 overflow-x-auto overflow-y-hidden whitespace-nowrap text-[10px] leading-none text-slate-500 sm:gap-x-1.5 sm:text-xs"
+      >
+        {children}
+      </p>
+      {hasOverflow ? (
+        <span
+          className="pointer-events-none mt-1 shrink-0 pl-1 text-sm font-semibold tracking-[0.14em] text-slate-400 transition-opacity duration-150"
+          style={{ opacity: 1 - revealProgress }}
+          aria-hidden="true"
+        >
+          ...
+        </span>
+      ) : null}
+    </div>
+  );
+};
+
 interface RecentItemsListProps {
   items: Item[];
   loading: boolean;
@@ -285,7 +331,7 @@ export const RecentItemsList = ({
                       <p className="truncate text-sm font-semibold leading-5 text-slate-950" title={item.title}>
                         {item.title}
                       </p>
-                      <p className="scrollbar-hidden mt-1 flex min-w-0 flex-nowrap items-center gap-1 overflow-x-auto overflow-y-hidden whitespace-nowrap text-[10px] leading-none text-slate-500 sm:gap-x-1.5 sm:text-xs">
+                      <MetadataRow>
                         <span className="shrink-0 text-[10px] font-medium leading-none text-indigo-600 sm:text-[11px]">
                           {getFileTypeLabel({ itemType: item.type, filename: item.file?.originalName, mimeType: item.file?.mimeType })}
                         </span>
@@ -312,7 +358,7 @@ export const RecentItemsList = ({
                             </span>
                           </>
                         ) : null}
-                      </p>
+                      </MetadataRow>
                     </div>
                   </button>
 
