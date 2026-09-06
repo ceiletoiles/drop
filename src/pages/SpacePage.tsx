@@ -12,6 +12,7 @@ import { NoteViewModal } from '../features/items/NoteViewModal';
 import { ImagePreviewModal } from '../features/items/ImagePreviewModal';
 import { UploadDropzone, type UploadItemState } from '../features/items/UploadDropzone';
 import { RecentItemsList } from '../features/items/RecentItemsList';
+import { DEFAULT_ITEM_SORT, sortItems } from '../features/items/item-sort';
 import { TextEditorModal } from '../features/items/TextEditorModal';
 import { ExpirationModal } from '../features/items/ExpirationModal';
 import type { Item } from '../features/items/types';
@@ -60,7 +61,7 @@ export const SpacePage = () => {
   const [loading, setLoading] = useState(!cachedPayload);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
-  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [itemSort, setItemSort] = useState(DEFAULT_ITEM_SORT);
   const [uploadItems, setUploadItems] = useState<UploadItemState[]>([]);
   const [uploadExpirationType, setUploadExpirationType] = useState<(typeof SPACE_EXPIRATION_TYPES)[number]>('24_HOURS');
   const [draftOpen, setDraftOpen] = useState(false);
@@ -404,13 +405,8 @@ export const SpacePage = () => {
       return title.includes(normalized) || content.includes(normalized) || filename.includes(normalized);
     });
 
-    list.sort((left, right) => {
-      const delta = new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
-      return sortOrder === 'newest' ? -delta : delta;
-    });
-
-    return list;
-  }, [items, query, sortOrder]);
+    return sortItems(list, itemSort);
+  }, [items, query, itemSort]);
 
   if (!authLoading && !session) return <Navigate to="/login" replace />;
 
@@ -727,12 +723,12 @@ export const SpacePage = () => {
                 items={filteredItems}
                 loading={false}
                 query={query}
-                sortOrder={sortOrder}
+                sort={itemSort}
                 activeFilter="search"
                 scope="space"
                 searchInputRef={searchInputRef}
                 onQueryChange={setQuery}
-                onSortChange={setSortOrder}
+                onSortChange={setItemSort}
                 onFocusSearch={() => undefined}
                 onViewText={handleViewText}
                 onCopyText={handleCopy}

@@ -23,6 +23,7 @@ import {
 import { useAuth } from '../features/auth/auth-context';
 import { consumeItem, deleteItem, createTextItem, extendExpirationItem, reduceExpirationItem, updateExpirationItem, updateTextItem, uploadFile } from '../features/items/items-api';
 import { RecentItemsList } from '../features/items/RecentItemsList';
+import { DEFAULT_ITEM_SORT, sortItems } from '../features/items/item-sort';
 import { ExpirationModal } from '../features/items/ExpirationModal';
 import { TextEditorModal } from '../features/items/TextEditorModal';
 import { NoteViewModal } from '../features/items/NoteViewModal';
@@ -95,7 +96,7 @@ export const DashboardPage = () => {
   const { session, user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
-  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [itemSort, setItemSort] = useState(DEFAULT_ITEM_SORT);
   const [activeFilter, setActiveFilter] = useState<ViewFilter>('home');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
@@ -354,13 +355,8 @@ export const DashboardPage = () => {
       return true;
     });
 
-    list.sort((left, right) => {
-      const delta = new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
-      return sortOrder === 'newest' ? -delta : delta;
-    });
-
-    return list;
-  }, [activeFilter, items, query, sortOrder]);
+    return sortItems(list, itemSort);
+  }, [activeFilter, items, query, itemSort]);
 
   const handleCreateText = () => {
     setEditingItem(null);
@@ -1046,10 +1042,10 @@ export const DashboardPage = () => {
                 items={filteredItems}
                 loading={loading}
                 query={query}
-                sortOrder={sortOrder}
+                sort={itemSort}
                 activeFilter={activeFilter}
                 onQueryChange={setQuery}
-                onSortChange={setSortOrder}
+                onSortChange={setItemSort}
                 onFocusSearch={() => searchInputRef.current?.focus()}
                 searchInputRef={searchInputRef}
                 onViewText={handleViewText}

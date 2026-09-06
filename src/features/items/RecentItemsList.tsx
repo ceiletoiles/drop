@@ -10,6 +10,7 @@ import { formatFileSize, formatRelativeTime } from '../../lib/format';
 import { getFileTypeKind, getFileTypeLabel } from '../../lib/file';
 import { clsx } from 'clsx';
 import { getExpirationSummary } from '../../lib/expiration';
+import { DEFAULT_ITEM_SORT, ITEM_SORT_GROUPS, type ItemSortState, isSameItemSort } from './item-sort';
 
 const getRecentItemExpirationLabel = (item: Item) =>
   item.expirationType === 'CONSUME' ? 'Instant' : getExpirationSummary(item.expirationType, item.expiresAt, item.type);
@@ -64,12 +65,12 @@ interface RecentItemsListProps {
   items: Item[];
   loading: boolean;
   query: string;
-  sortOrder: 'newest' | 'oldest';
+  sort: ItemSortState;
   activeFilter: 'home' | 'all' | 'text' | 'files' | 'images' | 'search';
   searchInputRef: RefObject<HTMLInputElement | null>;
   scope?: 'personal' | 'space';
   onQueryChange: (value: string) => void;
-  onSortChange: (value: 'newest' | 'oldest') => void;
+  onSortChange: (value: ItemSortState) => void;
   onFocusSearch: () => void;
   onViewText: (item: Item) => void;
   onCopyText: (item: Item) => Promise<void>;
@@ -84,7 +85,7 @@ export const RecentItemsList = ({
   items,
   loading,
   query,
-  sortOrder,
+  sort = DEFAULT_ITEM_SORT,
   activeFilter,
   searchInputRef,
   scope = 'personal',
@@ -170,37 +171,37 @@ export const RecentItemsList = ({
 
       {sortMenuOpen ? (
         <div
-          className="absolute right-0 top-[calc(100%+0.5rem)] z-30 w-52 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.12)]"
+          className="absolute right-0 top-[calc(100%+0.5rem)] z-30 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.12)]"
           data-sort-panel
         >
-          <button
-            type="button"
-            className={clsx(
-              'flex w-full items-center justify-between px-4 py-3 text-left text-sm transition',
-              sortOrder === 'newest' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-700 hover:bg-slate-100'
-            )}
-            onClick={() => {
-              onSortChange('newest');
-              setSortMenuOpen(false);
-            }}
-          >
-            <span>Newest first</span>
-            {sortOrder === 'newest' ? <span className="text-xs font-semibold">Active</span> : null}
-          </button>
-          <button
-            type="button"
-            className={clsx(
-              'flex w-full items-center justify-between px-4 py-3 text-left text-sm transition',
-              sortOrder === 'oldest' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-700 hover:bg-slate-100'
-            )}
-            onClick={() => {
-              onSortChange('oldest');
-              setSortMenuOpen(false);
-            }}
-          >
-            <span>Oldest first</span>
-            {sortOrder === 'oldest' ? <span className="text-xs font-semibold">Active</span> : null}
-          </button>
+          {ITEM_SORT_GROUPS.map((group, groupIndex) => (
+            <div key={group.field}>
+              {groupIndex > 0 ? <div className="border-t border-slate-100" aria-hidden="true" /> : null}
+              <p className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">{group.label}</p>
+              {group.options.map((option) => {
+                const nextSort = { field: group.field, direction: option.direction };
+                const isActive = isSameItemSort(sort, nextSort);
+
+                return (
+                  <button
+                    key={`${group.field}-${option.direction}`}
+                    type="button"
+                    className={clsx(
+                      'flex w-full items-center justify-between px-4 py-2.5 text-left text-sm transition',
+                      isActive ? 'bg-indigo-50 text-indigo-600' : 'text-slate-700 hover:bg-slate-100'
+                    )}
+                    onClick={() => {
+                      onSortChange(nextSort);
+                      setSortMenuOpen(false);
+                    }}
+                  >
+                    <span>{option.label}</span>
+                    {isActive ? <span className="text-xs font-semibold">Active</span> : null}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </div>
       ) : null}
     </div>
