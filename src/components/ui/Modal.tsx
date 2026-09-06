@@ -1,4 +1,4 @@
-import { useRef, useState, type PointerEvent, type PropsWithChildren, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type PointerEvent, type PropsWithChildren, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { clsx } from 'clsx';
 import { Button } from './Button';
@@ -15,6 +15,17 @@ interface ModalProps {
 export const Modal = ({ title, open, onClose, footer, footerClassName, bodyClassName, children }: PropsWithChildren<ModalProps>) => {
   const [dragOffset, setDragOffset] = useState(0);
   const dragStart = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
 
   if (!open) return null;
 
@@ -39,12 +50,12 @@ export const Modal = ({ title, open, onClose, footer, footerClassName, bodyClass
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-slate-950/55 p-0 sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto overscroll-contain bg-slate-950/55 p-0 sm:items-center sm:p-4"
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="flex max-h-[100dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white shadow-glow transition-transform duration-200 ease-out sm:max-h-[calc(100dvh-2rem)] sm:rounded-none sm:transition-none"
+        className="flex max-h-[100dvh] w-full max-w-2xl flex-col overscroll-contain overflow-hidden rounded-t-2xl border border-slate-200 bg-white shadow-glow transition-transform duration-200 ease-out sm:max-h-[calc(100dvh-2rem)] sm:rounded-none sm:transition-none"
         style={{ transform: `translateY(${dragOffset}px)` }}
         onClick={(event) => event.stopPropagation()}
         role="dialog"
@@ -66,7 +77,7 @@ export const Modal = ({ title, open, onClose, footer, footerClassName, bodyClass
             Close
           </Button>
         </div>
-        <div className={clsx('flex-1 overflow-y-auto', bodyClassName ?? 'p-5')}>{children}</div>
+        <div className={clsx('flex-1 overflow-y-auto overscroll-contain', bodyClassName ?? 'p-5')}>{children}</div>
         {footer ? <div className={clsx('border-t border-slate-100 px-5 py-4', footerClassName)}>{footer}</div> : null}
       </div>
     </div>,

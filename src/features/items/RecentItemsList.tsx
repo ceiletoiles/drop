@@ -244,7 +244,9 @@ export const RecentItemsList = ({
               <div className="relative min-w-0 w-80 flex-none">
                 <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <Input
-                  ref={searchInputRef}
+                  ref={(element) => {
+                    if (element && element.getClientRects().length > 0) searchInputRef.current = element;
+                  }}
                   value={query}
                   onChange={(event) => onQueryChange(event.target.value)}
                   placeholder="Search your items..."
@@ -261,7 +263,9 @@ export const RecentItemsList = ({
           <div className="relative mt-3 min-w-0 sm:hidden">
             <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <Input
-              ref={searchInputRef}
+              ref={(element) => {
+                if (element && element.getClientRects().length > 0) searchInputRef.current = element;
+              }}
               value={query}
               onChange={(event) => onQueryChange(event.target.value)}
               placeholder="Search your items..."
