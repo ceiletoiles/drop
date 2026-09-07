@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
+import { Clipboard } from '@capacitor/clipboard';
 import { AppShell } from '../components/layout/AppShell';
 import { usePullToRefresh } from '../lib/pull-to-refresh';
 import { Button } from '../components/ui/Button';
@@ -201,7 +203,9 @@ export const DashboardPage = () => {
   const handlePasteClipboard = useCallback(async () => {
     try {
       if (!token) return;
-      const text = await navigator.clipboard.readText();
+      const text = Capacitor.isNativePlatform()
+        ? (await Clipboard.read()).value
+        : await navigator.clipboard.readText();
       if (!text.trim()) throw new Error('Clipboard is empty.');
       openTextDraft(text);
     } catch (error) {
