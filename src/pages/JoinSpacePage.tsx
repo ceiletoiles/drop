@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { AppShell } from '../components/layout/AppShell';
+import { usePullToRefresh } from '../lib/pull-to-refresh';
 import { Button } from '../components/ui/Button';
 import { Spinner } from '../components/ui/Spinner';
 import { useAuth } from '../features/auth/auth-context';
@@ -18,6 +19,20 @@ export const JoinSpacePage = () => {
   const [loading, setLoading] = useState(true);
   const [joinLoading, setJoinLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const refreshInvite = useCallback(async () => {
+    if (!token) return;
+    try {
+      setLoading(true);
+      setError(null);
+      setInvite(await validateSpaceInvite(token));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Invite lookup failed.');
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+  usePullToRefresh(refreshInvite);
 
   useEffect(() => {
     if (!token) return;

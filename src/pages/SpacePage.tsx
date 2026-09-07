@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { AppShell } from '../components/layout/AppShell';
+import { usePullToRefresh } from '../lib/pull-to-refresh';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
@@ -158,6 +159,7 @@ export const SpacePage = () => {
     setItems(payload.items);
     setInvite(payload.invite ?? null);
   };
+  usePullToRefresh(refresh);
 
   useEffect(() => {
     if (!token || !spaceId) {

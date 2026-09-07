@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { AppShell } from '../components/layout/AppShell';
+import { usePullToRefresh } from '../lib/pull-to-refresh';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
@@ -143,6 +144,7 @@ export const DashboardPage = () => {
   const uploadDefaultExpirationTouchedRef = useRef(false);
   const apiConfigured = !needsApiOverride();
   const { items, loading, error, refresh, updateItem } = useItems(session?.access_token ?? null, '', apiConfigured);
+  usePullToRefresh(refresh);
 
   const token = session?.access_token ?? '';
   const uploadActionsDisabled = !token || uploadDefaultExpirationLoading || uploadDefaultExpirationSaving;

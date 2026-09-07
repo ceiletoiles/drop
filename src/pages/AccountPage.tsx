@@ -1,4 +1,5 @@
 import { AppShell } from '../components/layout/AppShell';
+import { usePullToRefresh } from '../lib/pull-to-refresh';
 import { Modal } from '../components/ui/Modal';
 import { Spinner } from '../components/ui/Spinner';
 import { useActivity } from '../features/activity/useActivity';
@@ -53,8 +54,15 @@ const panelClassName =
 export const AccountPage = () => {
   const navigate = useNavigate();
   const { user, session } = useAuth();
-  const { items } = useItems(session?.access_token ?? null, '', true);
-  const { activities, loading: activityLoading, error: activityError } = useActivity(session?.access_token ?? null, 20);
+  const { items, refresh: refreshItems } = useItems(session?.access_token ?? null, '', true);
+  const { activities, loading: activityLoading, error: activityError, refresh: refreshActivities } = useActivity(
+    session?.access_token ?? null,
+    20
+  );
+  usePullToRefresh(() => {
+    refreshItems();
+    refreshActivities();
+  });
   const [activeCategory, setActiveCategory] = useState<StorageCategory | null>(null);
   const [activityOpen, setActivityOpen] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);

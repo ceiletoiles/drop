@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { AppShell } from '../components/layout/AppShell';
+import { usePullToRefresh } from '../lib/pull-to-refresh';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
@@ -30,6 +31,19 @@ export const SpacesPage = () => {
   const [renameSpaceId, setRenameSpaceId] = useState<string | null>(null);
   const [renameName, setRenameName] = useState('');
   const [renameLoading, setRenameLoading] = useState(false);
+
+  const refreshSpaces = useCallback(async () => {
+    if (!token) return;
+    try {
+      setError(null);
+      const response = await fetchSpaces(token);
+      setSpaces(response.spaces);
+      if (user?.id) spacesCache.set(`${user.id}:spaces`, { spaces: response.spaces, fetchedAt: Date.now() });
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load spaces.');
+    }
+  }, [token, user?.id]);
+  usePullToRefresh(refreshSpaces);
 
   useEffect(() => {
     const cacheKey = user?.id ? `${user.id}:spaces` : '';

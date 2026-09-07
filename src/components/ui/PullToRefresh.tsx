@@ -5,8 +5,12 @@ import { Capacitor } from '@capacitor/core';
 const TRIGGER_THRESHOLD = 80;
 /** Maximum visual pull distance in px. */
 const MAX_PULL = 130;
-/** Size of the spinner circle in px. */
-const SPINNER_SIZE = 36;
+/** Size of the spinner artwork in px. */
+const SPINNER_SIZE = 30;
+/** Size of the white indicator surface around the artwork. */
+const INDICATOR_SIZE = 46;
+/** Extra SVG space reserved for the unchanged bold arrowhead. */
+const SVG_PADDING = 8;
 
 type PullState = 'idle' | 'pulling' | 'triggered' | 'refreshing' | 'settling';
 
@@ -138,10 +142,19 @@ export const PullToRefresh = ({ children, onRefresh }: PropsWithChildren<{ onRef
   const isRefreshing = state === 'refreshing';
   const showSpinner = isActive && pullDistance > 4;
 
-  // The SVG draws a circular arc that fills as the user pulls.
+  // The same open arc is used in both states. While pulling, the arc grows
+  // with the gesture and carries an arrowhead; refreshing removes the arrow
+  // and rotates the arc continuously.
   const radius = (SPINNER_SIZE - 4) / 2;
   const circumference = 2 * Math.PI * radius;
-  const arcLength = isRefreshing ? circumference * 0.7 : circumference * progress;
+  const arcProgress = isRefreshing ? 0.72 : Math.max(progress * 0.72, 0.08);
+  const arcLength = circumference * arcProgress;
+  const arrowAngle = -90 + arcProgress * 360;
+  const arrowRadians = (arrowAngle * Math.PI) / 180;
+  const svgSize = SPINNER_SIZE + SVG_PADDING * 2;
+  const svgCenter = svgSize / 2;
+  const arrowX = svgCenter + radius * Math.cos(arrowRadians);
+  const arrowY = svgCenter + radius * Math.sin(arrowRadians);
 
   return (
     <div ref={containerRef} className="ptr-wrapper">
@@ -157,41 +170,38 @@ export const PullToRefresh = ({ children, onRefresh }: PropsWithChildren<{ onRef
         <div
           className={`ptr-spinner-container${isRefreshing ? ' ptr-spinning' : ''}`}
           style={{
-            width: SPINNER_SIZE,
-            height: SPINNER_SIZE,
+            width: INDICATOR_SIZE,
+            height: INDICATOR_SIZE,
             opacity: showSpinner ? Math.min(progress * 1.5, 1) : 0,
             transform: `scale(${0.4 + progress * 0.6})`
           }}
         >
-          <svg width={SPINNER_SIZE} height={SPINNER_SIZE} viewBox={`0 0 ${SPINNER_SIZE} ${SPINNER_SIZE}`}>
-            {/* Background circle track */}
+          <svg
+            width={svgSize}
+            height={svgSize}
+            viewBox={`0 0 ${svgSize} ${svgSize}`}
+            overflow="visible"
+            aria-hidden="true"
+          >
             <circle
-              cx={SPINNER_SIZE / 2}
-              cy={SPINNER_SIZE / 2}
+              cx={svgCenter}
+              cy={svgCenter}
               r={radius}
               fill="none"
-              stroke="rgba(99,102,241,0.15)"
-              strokeWidth="3"
-            />
-            {/* Foreground arc */}
-            <circle
-              cx={SPINNER_SIZE / 2}
-              cy={SPINNER_SIZE / 2}
-              r={radius}
-              fill="none"
-              stroke="url(#ptr-gradient)"
-              strokeWidth="3"
+              stroke="#111827"
+              strokeWidth="3.5"
               strokeLinecap="round"
               strokeDasharray={`${arcLength} ${circumference - arcLength}`}
               strokeDashoffset={circumference * 0.25}
               style={{ transition: isRefreshing ? 'none' : 'stroke-dasharray 0.08s ease' }}
             />
-            <defs>
-              <linearGradient id="ptr-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#6366f1" />
-                <stop offset="100%" stopColor="#0ea5e9" />
-              </linearGradient>
-            </defs>
+            {!isRefreshing && (
+              <polygon
+                points="0,-4.5 7,0 0,4.5"
+                fill="#111827"
+                transform={`translate(${arrowX} ${arrowY}) rotate(${arrowAngle + 90})`}
+              />
+            )}
           </svg>
         </div>
       </div>
