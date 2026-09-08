@@ -1,5 +1,5 @@
 import type { Env } from './types';
-import { getAuthenticatedUser } from './lib/auth';
+import { deleteAccount, getAuthenticatedUser } from './lib/auth';
 import { corsResponse, errorResponse, withCors } from './lib/response';
 import {
   copySharedItemText,
@@ -510,6 +510,11 @@ export default {
     }
 
     try {
+      if (request.method === 'DELETE' && url.pathname === '/api/account') {
+        const payload = await deleteAccount(env, user.id);
+        return corsResponse(request, payload);
+      }
+
       const spaceResponse = await handleSpaces(request, env, user);
       if (spaceResponse.status !== 404 || new URL(request.url).pathname.startsWith('/api/spaces')) {
         return withCors(request, spaceResponse);

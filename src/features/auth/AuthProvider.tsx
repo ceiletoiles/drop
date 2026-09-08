@@ -226,6 +226,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (error) throw error;
       setSession(null);
       lastLoggedSessionRef.current = null;
+    },
+    deleteAccount: async () => {
+      if (!supabase) throw new Error('Supabase is not configured.');
+      if (!session?.access_token) throw new Error('You must be signed in to delete your account.');
+
+      await apiFetch('/api/account', {
+        method: 'DELETE',
+        token: session.access_token
+      });
+
+      await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+      setSession(null);
+      lastLoggedSessionRef.current = null;
     }
   };
 

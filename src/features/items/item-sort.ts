@@ -15,24 +15,24 @@ export const ITEM_SORT_GROUPS = [
     field: 'time' as const,
     label: 'By time',
     options: [
-      { direction: 'desc' as const, label: 'Newest first' },
-      { direction: 'asc' as const, label: 'Oldest first' }
+      { direction: 'desc' as const, label: 'Recent' },
+      { direction: 'asc' as const, label: 'Old' }
     ]
   },
   {
     field: 'size' as const,
     label: 'By size',
     options: [
-      { direction: 'desc' as const, label: 'Biggest first' },
-      { direction: 'asc' as const, label: 'Smallest first' }
+      { direction: 'desc' as const, label: 'Big' },
+      { direction: 'asc' as const, label: 'Small' }
     ]
   },
   {
     field: 'expiration' as const,
     label: 'By expiration',
     options: [
-      { direction: 'asc' as const, label: 'Soonest first' },
-      { direction: 'desc' as const, label: 'Latest first' }
+      { direction: 'asc' as const, label: 'Soon' },
+      { direction: 'desc' as const, label: 'Late' }
     ]
   }
 ] as const;

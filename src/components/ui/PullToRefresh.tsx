@@ -139,6 +139,7 @@ export const PullToRefresh = ({ children, onRefresh }: PropsWithChildren<{ onRef
 
   const progress = Math.min(pullDistance / TRIGGER_THRESHOLD, 1);
   const isActive = state !== 'idle';
+  const isPulling = state === 'pulling' || state === 'triggered';
   const isRefreshing = state === 'refreshing';
   const showSpinner = isActive && pullDistance > 4;
 
@@ -193,9 +194,12 @@ export const PullToRefresh = ({ children, onRefresh }: PropsWithChildren<{ onRef
               strokeLinecap="round"
               strokeDasharray={`${arcLength} ${circumference - arcLength}`}
               strokeDashoffset={circumference * 0.25}
-              style={{ transition: isRefreshing ? 'none' : 'stroke-dasharray 0.08s ease' }}
+              // The arrowhead uses the same progress frame as the arc. Do not
+              // interpolate the arc while dragging or the arrowhead can briefly
+              // outrun it during a fast pull.
+              style={{ transition: isPulling || isRefreshing ? 'none' : 'stroke-dasharray 0.08s ease' }}
             />
-            {!isRefreshing && (
+            {isPulling && (
               <polygon
                 points="0,-4.5 7,0 0,4.5"
                 fill="#111827"

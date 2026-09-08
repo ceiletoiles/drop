@@ -1,5 +1,7 @@
 import { AppShell } from '../components/layout/AppShell';
 import { usePullToRefresh } from '../lib/pull-to-refresh';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { Spinner } from '../components/ui/Spinner';
 import { useActivity } from '../features/activity/useActivity';
@@ -48,12 +50,21 @@ const ActivityIcon = ({ className, ...props }: SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+const UserRoundXIcon = ({ className, ...props }: SVGProps<SVGSVGElement>) => (
+  <svg className={clsx('h-5 w-5', className)} {...iconBaseProps} viewBox="0 0 24 24" strokeWidth={2} {...props}>
+    <path d="m16.5 16.5 5 5" />
+    <path d="M2 21a8 8 0 0 1 11.531-7.18" />
+    <path d="m21.5 16.5-5 5" />
+    <circle cx="10" cy="8" r="5" />
+  </svg>
+);
+
 const panelClassName =
   'overflow-hidden rounded-none border border-slate-200/80 bg-[linear-gradient(180deg,_rgba(251,252,255,0.92),_rgba(238,243,251,0.92))] p-4 shadow-[0_14px_44px_rgba(15,23,42,0.06)] backdrop-blur-sm sm:p-5';
 
 export const AccountPage = () => {
   const navigate = useNavigate();
-  const { user, session } = useAuth();
+  const { user, session, deleteAccount } = useAuth();
   const { items, refresh: refreshItems } = useItems(session?.access_token ?? null, '', true);
   const { activities, loading: activityLoading, error: activityError, refresh: refreshActivities } = useActivity(
     session?.access_token ?? null,
@@ -66,11 +77,29 @@ export const AccountPage = () => {
   const [activeCategory, setActiveCategory] = useState<StorageCategory | null>(null);
   const [activityOpen, setActivityOpen] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
+  const [deleteAccountConfirmation, setDeleteAccountConfirmation] = useState('');
+  const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
+  const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
   const [spaceInvitations, setSpaceInvitations] = useState<Awaited<ReturnType<typeof fetchMySpaceInvitations>>['invitations']>([]);
   const [spaceInvitationsLoading, setSpaceInvitationsLoading] = useState(false);
   const [spaceInvitationsError, setSpaceInvitationsError] = useState<string | null>(null);
   const [profileImageError, setProfileImageError] = useState(false);
   const headerMenuRef = useRef<HTMLDivElement | null>(null);
+
+  const handleDeleteAccount = async () => {
+    if (deleteAccountConfirmation !== 'DELETE') return;
+
+    try {
+      setDeleteAccountLoading(true);
+      setDeleteAccountError(null);
+      await deleteAccount();
+      navigate('/login', { replace: true });
+    } catch (err: unknown) {
+      setDeleteAccountError(err instanceof Error ? err.message : 'Failed to delete account.');
+      setDeleteAccountLoading(false);
+    }
+  };
 
   const displayName =
     user?.user_metadata?.full_name ??
@@ -325,7 +354,7 @@ export const AccountPage = () => {
 
               {headerMenuOpen ? (
                 <div
-                  className="absolute right-0 top-[calc(100%+0.5rem)] z-20 w-32 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.12)]"
+                  className="absolute right-0 top-[calc(100%+0.5rem)] z-20 w-44 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.12)]"
                   role="menu"
                 >
                   <button
@@ -334,11 +363,25 @@ export const AccountPage = () => {
                       setHeaderMenuOpen(false);
                       setActivityOpen(true);
                     }}
-                    className="flex w-full items-center justify-center gap-3 px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-100"
+                    className="flex w-full items-center justify-start gap-3 px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-slate-100"
                     role="menuitem"
                   >
                     <ActivityIcon className="shrink-0 text-slate-600" viewBox="0 0 24 24" />
                     <span className="font-medium text-slate-950">Activity</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setHeaderMenuOpen(false);
+                      setDeleteAccountConfirmation('');
+                      setDeleteAccountError(null);
+                      setDeleteAccountOpen(true);
+                    }}
+                    className="flex w-full items-center justify-start gap-3 px-4 py-3 text-left text-sm text-rose-600 transition hover:bg-rose-50"
+                    role="menuitem"
+                  >
+                    <UserRoundXIcon className="shrink-0" />
+                    <span className="font-medium">Delete account</span>
                   </button>
                 </div>
               ) : null}
@@ -531,6 +574,49 @@ export const AccountPage = () => {
               No activity yet.
             </div>
           )}
+        </div>
+      </Modal>
+
+      <Modal
+        title="Delete account"
+        open={deleteAccountOpen}
+        onClose={() => {
+          if (!deleteAccountLoading) setDeleteAccountOpen(false);
+        }}
+        footer={
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="secondary" onClick={() => setDeleteAccountOpen(false)} disabled={deleteAccountLoading}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              onClick={() => void handleDeleteAccount()}
+              disabled={deleteAccountLoading || deleteAccountConfirmation !== 'DELETE'}
+            >
+              {deleteAccountLoading ? <Spinner /> : 'Delete permanently'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm leading-6 text-slate-600">
+            This permanently deletes your account, personal items, owned Spaces, and uploaded files. This action cannot be undone.
+          </p>
+          {deleteAccountError ? (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{deleteAccountError}</div>
+          ) : null}
+          <label className="block text-sm font-medium text-slate-700" htmlFor="delete-account-confirmation">
+            Type <span className="font-semibold text-slate-950">DELETE</span> to continue
+          </label>
+          <Input
+            id="delete-account-confirmation"
+            value={deleteAccountConfirmation}
+            onChange={(event) => setDeleteAccountConfirmation(event.target.value)}
+            placeholder="DELETE"
+            autoComplete="off"
+            disabled={deleteAccountLoading}
+          />
         </div>
       </Modal>
     </AppShell>
