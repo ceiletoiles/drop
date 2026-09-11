@@ -61,6 +61,7 @@ export const Modal = ({ title, open, onClose, footer, footerClassName, bodyClass
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        data-modal-surface
       >
         <div className="relative flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
           <div

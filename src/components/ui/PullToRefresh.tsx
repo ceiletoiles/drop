@@ -30,6 +30,8 @@ const isInsideScrolledContainer = (target: EventTarget | null): boolean => {
   return false;
 };
 
+const isInsideModal = (target: EventTarget | null): boolean => target instanceof Element && target.closest('[data-modal-surface]') !== null;
+
 export const PullToRefresh = ({ children, onRefresh }: PropsWithChildren<{ onRefresh: () => Promise<void> }>) => {
   const isNative = Capacitor.isNativePlatform();
 
@@ -45,6 +47,9 @@ export const PullToRefresh = ({ children, onRefresh }: PropsWithChildren<{ onRef
     (event: TouchEvent) => {
       if (state === 'refreshing' || state === 'settling') return;
       if (event.touches.length !== 1) return;
+
+      // Modal gestures belong to the modal, even when its scroll area is at the top.
+      if (isInsideModal(event.target)) return;
 
       // Don't interfere with scrollable children that have scrolled down.
       if (isInsideScrolledContainer(event.target)) return;
